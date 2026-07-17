@@ -18,6 +18,12 @@ Pi starts open by default. pi-run-mode adds three run modes so you can stay in f
 
 Cross-mode **hardDeny** blocks sensitive paths and dangerous bash with no prompt.
 
+### Ask mode — bash review
+
+In **ask**, mutating/risky bash opens an approval dialog. AI review is advisory (never self-approves); you can enable **Auto-allow AI-safe this session** for later read-only commands.
+
+![ask mode bash review dialog](assets/ask-bash-review.png)
+
 ## Install
 
 From GitHub (until npm publish):
