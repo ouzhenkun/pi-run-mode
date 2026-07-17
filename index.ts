@@ -11,7 +11,7 @@
  * - auto: writes and most bash run freely; risky bash prompts with Allow
  *   once / Allow session / Deny.
  *
- * Cross-mode hard-deny (~/.pi/agent/agent-mode.json `hardDeny`) blocks
+ * Cross-mode hard-deny (~/.pi/agent/pi-run-mode.json `hardDeny`) blocks
  * sensitive paths and dangerous bash in every mode, with no prompt.
  * See permission/policy.ts.
  *

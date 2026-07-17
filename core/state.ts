@@ -1,15 +1,15 @@
 /**
- * Runtime state container + persistence for agent-mode.
+ * Runtime state container + persistence for pi-run-mode.
  *
  * `RuntimeState` replaces the closure variables that used to live in the
  * extension entry point, so domain modules (modes/, plan/, permission/) can
  * share one mutable state object instead of capturing a closure.
  *
- * `AgentModeState` is the persisted config-file shape (agent-mode.json), a
+ * `AgentModeState` is the persisted config-file shape (pi-run-mode.json), a
  * strict subset of the runtime state.
  */
 
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import type {
   ExtensionAPI,
   ExtensionContext,
@@ -18,6 +18,7 @@ import type { HardDeny } from "../permission/policy.ts";
 import type { AIReviewConfig } from "../review/ai-review.ts";
 import {
   DEFAULT_MODE,
+  LEGACY_STATE_FILE_PATH,
   MODES,
   STATE_ENTRY_TYPE,
   STATE_FILE_PATH,
@@ -25,7 +26,7 @@ import {
   type ModelRef,
 } from "./types.ts";
 
-// Persisted config-file shape (agent-mode.json). `modeModels` is owned by the
+// Persisted config-file shape (pi-run-mode.json). `modeModels` is owned by the
 // extension; `syncModels`/`hardDeny`/`aiReview` are user-authored config.
 export type AgentModeState = {
   modeModels?: Record<Mode, ModelRef | null>;
@@ -84,6 +85,20 @@ export function createRuntimeState(): RuntimeState {
 export function loadStateFile(): AgentModeState {
   try {
     return JSON.parse(readFileSync(STATE_FILE_PATH, "utf-8"));
+  } catch {
+    // fall through to legacy path
+  }
+  try {
+    const legacy = JSON.parse(
+      readFileSync(LEGACY_STATE_FILE_PATH, "utf-8"),
+    ) as AgentModeState;
+    try {
+      writeFileSync(STATE_FILE_PATH, JSON.stringify(legacy, null, 2));
+      unlinkSync(LEGACY_STATE_FILE_PATH);
+    } catch {
+      // best-effort migrate; still return the loaded legacy content
+    }
+    return legacy;
   } catch {
     return {};
   }

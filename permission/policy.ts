@@ -124,7 +124,7 @@ export function checkHardDeny(
     return { action: "deny", reason: `Blocked by policy: read access to "${req.path}" is denied (hardDeny.read).` };
   }
   if (req.kind === "write" && matchesAnyPath(req.absPath, hardDeny.write, cwd)) {
-    return { action: "deny", reason: `Blocked by policy: write access to "${req.path}" is denied (hardDeny.write). To allow, edit hardDeny.write in agent-mode.json.` };
+    return { action: "deny", reason: `Blocked by policy: write access to "${req.path}" is denied (hardDeny.write). To allow, edit hardDeny.write in pi-run-mode.json.` };
   }
   if (req.kind === "bash") {
     if (req.bashKind === "dangerous") {
