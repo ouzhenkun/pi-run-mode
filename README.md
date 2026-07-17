@@ -13,15 +13,15 @@ pi install npm:pi-run-mode
 
 ## Why
 
-Pi starts open by default. pi-run-mode adds three run modes so you can stay in flow without giving every tool call free rein:
+pi-run-mode adds an ask / plan / auto workflow for balancing control, planning depth, and execution speed. Each mode can use its own model — for example, a stronger model for planning and a faster, cheaper one for execution.
 
 | Mode | Behavior |
 |------|----------|
-| **ask** | Writes and risky bash need approval (diff/patch preview). Optional AI review advises on bash safety and can auto-allow safe commands when explicitly enabled for the session. |
-| **plan** | Read-only exploration. Only the session plan file may be written. Model enters via `plan_start` and exits via `plan_approve`. |
-| **auto** | Writes and most bash run freely; risky bash still prompts (Allow once / Allow session / Deny). |
+| **ask** | Reads run freely; writes and non-read-only bash require approval. Optional AI review can auto-allow safe commands when enabled. |
+| **plan** | Read-only exploration; only the session plan file may be written. Approval switches to auto for execution. |
+| **auto** | Writes and most bash run freely; risky bash still requires approval. |
 
-Cross-mode **hardDeny** blocks sensitive paths and dangerous bash with no prompt.
+Cross-mode `hardDeny` rules block sensitive paths and dangerous commands in every mode.
 
 ### Ask mode — bash review
 
@@ -53,22 +53,6 @@ plan (GPT-5.5)
   ├─ Execute ───────────────────→ auto (DeepSeek V4 Flash)
   └─ Execute with… → pick model → auto (selected model)
 ```
-
-Mode transitions automatically restore the model configured in `modeModels`.
-
-**Enter Plan:**
-
-- Ask naturally, such as “plan this first.”
-- Let the model call `plan_start` when planning is warranted.
-- Run `/run-mode plan`, start with `pi --plan`, or use the configured cycle shortcut.
-
-**Approve Plan:**
-
-- **Execute** → switch to auto with `modeModels.auto`.
-- **Execute with…** → switch to auto with the selected model.
-- **Stay in plan mode** → remain in Plan with `modeModels.plan`.
-
-`plan_start` is intended for work that benefits from planning, such as multi-file changes, architectural decisions, unclear requirements, or meaningful implementation trade-offs. A stronger model alone does not trigger Plan.
 
 ## Usage
 
