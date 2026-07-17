@@ -1,7 +1,8 @@
 /**
  * pi-run-mode
  *
- * Unified run-mode switcher: ask → plan → auto (cycle). Shift+Tab cycles modes.
+ * Unified run-mode switcher: ask → plan → auto (cycle). Optional cycle
+ * shortcut via pi-run-mode.json `cycleShortcut`; always available as /run-mode.
  *
  * Modes:
  * - ask (default): write/edit/patch prompt with diff preview; mutating/risky
@@ -18,7 +19,7 @@
  * This entry point only bootstraps: it creates the shared runtime state and
  * wires the domain modules. The logic lives in:
  * - core/        state container, persistence, model binding
- * - modes/       setMode, Shift+Tab, /mode, footer/status indicators
+ * - modes/       setMode, optional cycle shortcut, /run-mode, indicators
  * - plan/        plan-mode lifecycle, tools, review rendering
  * - permission/  the tool_call gate, decision policy, approval prompts
  * - review/      AI bash review, model picker
@@ -30,6 +31,7 @@ import {
   createRuntimeState,
   loadStateFile,
   persistState,
+  resolveCycleShortcut,
   restoreState,
 } from "./core/state.ts";
 import { MODES, type Mode } from "./core/types.ts";
@@ -48,8 +50,13 @@ export default function agentModeExtension(pi: ExtensionAPI): void {
   const state = createRuntimeState();
   const setMode = createSetMode(pi, state);
 
+  // Shortcut must be registered at load time (not session_start). Read config
+  // early; changes to cycleShortcut need /reload.
+  const bootConfig = loadStateFile();
+  const cycleShortcut = resolveCycleShortcut(bootConfig.cycleShortcut);
+
   // --- Domain wiring ---
-  registerModeControls(pi, state, setMode);
+  registerModeControls(pi, state, setMode, cycleShortcut);
   registerPlanLifecycle(pi, state);
   registerPlanTools(pi, state, setMode);
   registerPlanReview(pi, state);

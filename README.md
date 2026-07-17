@@ -64,10 +64,14 @@ Reload with `/reload` or restart pi.
 
 | Action | How |
 |--------|-----|
-| Cycle mode | `Shift+Tab` (ask → plan → auto) |
-| Set mode | `/mode ask` · `/mode plan` · `/mode auto` |
-| Toggle / cycle | `/mode` or `/mode toggle` |
+| Show mode | `/run-mode` |
+| Set mode | `/run-mode ask` · `/run-mode plan` · `/run-mode auto` |
+| Cycle mode | `/run-mode toggle` (or configured shortcut) |
 | Start in plan | `pi --plan` |
+
+No cycle shortcut is registered by default — pi already uses `Shift+Tab` for
+thinking level. Set `cycleShortcut` in config if you want a key (and free that
+key from pi's `keybindings.json` if needed).
 
 ### Plan tools (model-driven)
 
@@ -84,6 +88,7 @@ Create `~/.pi/agent/pi-run-mode.json`:
 
 ```json
 {
+  "cycleShortcut": "alt+m",
   "modeModels": {
     "ask": { "provider": "xai-auth", "id": "grok-4.5" },
     "plan": { "provider": "anthropic", "id": "claude-sonnet-4" },
@@ -105,6 +110,7 @@ Create `~/.pi/agent/pi-run-mode.json`:
 
 | Field | Description |
 |-------|-------------|
+| `cycleShortcut` | Optional key chord to cycle modes (e.g. `alt+m`). Omit / `null` / `""` = command only. Change requires `/reload`. |
 | `modeModels` | Per-mode model binding; restored on mode switch / session start |
 | `syncModels` | Modes that share one model (changes propagate across the group) |
 | `hardDeny.read/write` | Glob-ish path denylist (basename patterns match any dir) |
@@ -129,7 +135,7 @@ Wire a thin bridge if you want footer / desktop notify / next-cue integration.
 ```
 index.ts          bootstrap + session restore
 core/             runtime state, persistence, model binding
-modes/            setMode, Shift+Tab, /mode, indicators
+modes/            setMode, optional cycle shortcut, /run-mode, indicators
 plan/             plan tools, lifecycle hooks, plan file, prompt
 permission/       tool_call gate, policy, approve dialogs, bash classifier
 review/           AI bash review, model picker

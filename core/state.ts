@@ -26,12 +26,14 @@ import {
 } from "./types.ts";
 
 // Persisted config-file shape (pi-run-mode.json). `modeModels` is owned by the
-// extension; `syncModels`/`hardDeny`/`aiReview` are user-authored config.
+// extension; the rest are user-authored config.
 export type AgentModeState = {
   modeModels?: Record<Mode, ModelRef | null>;
   syncModels?: Mode[];
   hardDeny?: HardDeny;
   aiReview?: AIReviewConfig;
+  /** Key chord for cycling modes (e.g. "alt+m"). null/omit/"" = command only. */
+  cycleShortcut?: string | null;
 };
 
 export interface RuntimeState {
@@ -91,15 +93,26 @@ export function loadStateFile(): AgentModeState {
 
 export function saveStateFile(state: AgentModeState): void {
   try {
-    // Preserve user-provided config (syncModels, hardDeny, aiReview) across
-    // writes — this owns modeModels only; the rest is user-authored.
+    // Preserve user-authored keys across writes — this owns modeModels only.
     const existing = loadStateFile();
     const merged: AgentModeState = { ...state };
     if (existing.syncModels) merged.syncModels = existing.syncModels;
     if (existing.hardDeny) merged.hardDeny = existing.hardDeny;
     if (existing.aiReview) merged.aiReview = existing.aiReview;
+    if (existing.cycleShortcut !== undefined) {
+      merged.cycleShortcut = existing.cycleShortcut;
+    }
     writeFileSync(STATE_FILE_PATH, JSON.stringify(merged, null, 2));
   } catch {} // best-effort
+}
+
+/** Normalize config cycleShortcut: non-empty string → chord, else null (disabled). */
+export function resolveCycleShortcut(
+  value: unknown,
+): string | null {
+  if (typeof value !== "string") return null;
+  const s = value.trim().toLowerCase();
+  return s.length > 0 ? s : null;
 }
 
 export function persistState(pi: ExtensionAPI, state: RuntimeState): void {

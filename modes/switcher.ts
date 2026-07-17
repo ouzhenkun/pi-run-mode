@@ -1,7 +1,7 @@
 /**
  * Mode switching: setMode (save current model to the outgoing mode, restore
  * the incoming mode's model, record the transition for plan lifecycle) plus
- * the Shift+Tab shortcut and /mode command.
+ * optional cycle shortcut and /run-mode command.
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
@@ -51,6 +51,7 @@ export function registerModeControls(
   pi: ExtensionAPI,
   state: RuntimeState,
   setMode: SetMode,
+  cycleShortcut: string | null,
 ): void {
   async function cycleMode(): Promise<void> {
     const idx = MODES.indexOf(state.mode);
@@ -58,25 +59,47 @@ export function registerModeControls(
     await setMode(next);
   }
 
-  pi.registerShortcut("shift+tab", {
-    description: "Cycle mode: ask → plan → auto",
-    handler: async () => {
-      if (!state.currentCtx) return;
-      await cycleMode();
-    },
-  });
-
-  pi.registerCommand("mode", {
-    description: "Set agent mode (ask/plan/auto)",
-    handler: async (args, ctx) => {
-      const cmd = args.trim().toLowerCase() as Mode;
-      if (MODES.includes(cmd)) {
-        await setMode(cmd);
-      } else if (cmd === "" || cmd === "toggle") {
+  // Optional: omit / null / "" in config → no shortcut (avoids shift+tab vs
+  // app.thinking.cycle). Set cycleShortcut in pi-run-mode.json to enable.
+  if (cycleShortcut) {
+    pi.registerShortcut(cycleShortcut, {
+      description: "Cycle mode: ask → plan → auto",
+      handler: async () => {
+        if (!state.currentCtx) return;
         await cycleMode();
-      } else {
-        ctx.ui.notify(`Unknown mode: ${cmd}. Use: ask, plan, auto`, "warning");
+      },
+    });
+  }
+
+  pi.registerCommand("run-mode", {
+    description: "Show or set run mode (ask/plan/auto); cycle with toggle",
+    handler: async (args, ctx) => {
+      const cmd = args.trim().toLowerCase();
+      if (cmd === "") {
+        const shortcutHint = cycleShortcut
+          ? ` · shortcut: ${cycleShortcut}`
+          : "";
+        ctx.ui.notify(
+          `Mode: ${state.mode} (ask → plan → auto)${shortcutHint}\n` +
+            `Usage: /run-mode ask|plan|auto · /run-mode toggle`,
+          "info",
+        );
+        return;
       }
+      if (cmd === "toggle" || cmd === "cycle" || cmd === "next") {
+        await cycleMode();
+        ctx.ui.notify(`Mode: ${state.mode}`, "info");
+        return;
+      }
+      if (MODES.includes(cmd as Mode)) {
+        await setMode(cmd as Mode);
+        ctx.ui.notify(`Mode: ${state.mode}`, "info");
+        return;
+      }
+      ctx.ui.notify(
+        `Unknown mode: ${cmd}. Use: ask, plan, auto, toggle`,
+        "warning",
+      );
     },
   });
 }
