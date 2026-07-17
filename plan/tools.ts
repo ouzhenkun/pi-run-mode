@@ -9,7 +9,7 @@
 
 import { Type } from "typebox";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { EV_MODAL, EV_NOTIFY } from "../core/events.ts";
+import { EV_NOTIFY } from "../core/events.ts";
 import type { RuntimeState } from "../core/state.ts";
 import type { SetMode } from "../core/types.ts";
 import { approveDialog } from "../permission/approve-dialog.ts";
@@ -76,8 +76,7 @@ export function registerPlanTools(
       ].filter(Boolean);
       const executeLabel = getExecuteLabel();
       ctx.ui.setWorkingVisible(false);
-      pi.events.emit(EV_MODAL, { phase: "open" });
-      const planResult = await approveDialog(ctx, {
+      const planResult = await approveDialog(pi, ctx, {
         title: "Plan ready",
         items: [
           { value: "execute", label: executeLabel },
@@ -87,14 +86,11 @@ export function registerPlanTools(
         onWaitApprove: () => {
           pi.events.emit(EV_NOTIFY, {
             type: "plan-ready",
-            title: "📋 Plan Ready",
             body:
               bodyParts.join("\n").slice(0, 300) || "Execute or stay in plan mode?",
-            sound: "plan-ready",
           });
         },
       });
-      pi.events.emit(EV_MODAL, { phase: "close" });
       ctx.ui.setWorkingVisible(true);
 
       if (!planResult) {
@@ -121,7 +117,7 @@ export function registerPlanTools(
           state.lastExitPlanApproval = "rejected";
           return undefined;
         }
-        const picked = await pickModel(ctx, models);
+        const picked = await pickModel(pi, ctx, models);
         if (picked) {
           const model = ctx.modelRegistry.find(picked.provider, picked.id);
           state.lastExitPlanApproval = "approved";

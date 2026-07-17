@@ -26,7 +26,6 @@
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { EV_NOTIFY } from "./core/events.ts";
 import {
   createRuntimeState,
   loadStateFile,
@@ -133,25 +132,6 @@ export default function agentModeExtension(pi: ExtensionAPI): void {
     state.currentModelRef = { provider: event.model.provider, id: event.model.id };
     applyModelToSyncGroup(state, state.mode, state.currentModelRef);
     persistState(pi, state);
-  });
-
-  // Notify when the agent calls ask_user_question (waiting for user input).
-  pi.on("tool_call", async (event) => {
-    if (event.toolName !== "ask_user_question") return undefined;
-    const input = event.input as any;
-    const subtitle: string = (
-      input?.questions?.[0]?.header ??
-      ""
-    ).slice(0, 80);
-    const question: string = (input?.questions?.[0]?.question ?? "").slice(0, 200);
-    const body: string = [subtitle, question].filter(Boolean).join("\n");
-    pi.events.emit(EV_NOTIFY, {
-      type: "question",
-      title: "✋ Input Needed",
-      body,
-      sound: "question",
-    });
-    return undefined;
   });
 
   pi.registerFlag("plan", {

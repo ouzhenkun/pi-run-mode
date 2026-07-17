@@ -109,8 +109,8 @@ Outbound bus only (no hard dependencies). Listen if you want to react:
 
 | Event | Payload | When |
 |-------|---------|------|
-| `pi-run-mode:mode` | `{ label: string \| null }` | Mode changes (ask → `null`) |
-| `pi-run-mode:notify` | `{ type?, title, body, sound?, … }` | Approval wait, plan ready, input needed |
+| `pi-run-mode:change` | `{ label: string \| null }` | Mode changes (ask → `null`) |
+| `pi-run-mode:notify` | `{ type: "approval-needed" \| "plan-ready", body: string }` | Approval wait and plan ready |
 | `pi-run-mode:modal` | `{ phase: "open" \| "close" }` | Plan approval dialog open/close |
 
 ## Architecture

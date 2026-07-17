@@ -1,14 +1,14 @@
 /**
  * Outbound event-bus names for pi-run-mode.
  *
- * No hard dependency on footer / notify / next-cue — consumers (or a thin
- * bridge extension) listen and map to their own contracts.
+ * No hard dependency on footer / desktop notifications / next-cue — consumers
+ * listen and map these semantic events to their own contracts.
  */
 
 /** Mode badge update. Payload: `{ label: string | null }`. */
-export const EV_MODE = "pi-run-mode:mode";
+export const EV_MODE = "pi-run-mode:change";
 
-/** Desktop / UI notify request. Payload mirrors common notify buses. */
+/** Notification request. Payload: `{ type: "approval-needed" | "plan-ready", body: string }`. */
 export const EV_NOTIFY = "pi-run-mode:notify";
 
 /**

@@ -16,6 +16,8 @@
  *   ──────────────────────────────
  */
 
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { withModal } from "../core/modal.ts";
 import {
   Input,
   SelectList,
@@ -182,6 +184,7 @@ class ModelPickerDialog {
  * Returns `{ provider, id }` on confirm, or `null` if cancelled.
  */
 export async function pickModel(
+  pi: ExtensionAPI,
   ctx: any,
   models: Array<{ provider: string; id: string }>,
 ): Promise<PickedModel> {
@@ -190,8 +193,8 @@ export async function pickModel(
     label: `${m.provider}/${m.id}`,
   }));
 
-  return ctx.ui.custom(
+  return withModal(pi, () => ctx.ui.custom(
     (tui: any, theme: any, _kb: any, done: (r: PickedModel) => void) =>
       new ModelPickerDialog(items, theme, tui, done),
-  );
+  ));
 }

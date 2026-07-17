@@ -1,5 +1,5 @@
 /**
- * Mode indicators: the mode badge event (pi-run-mode:mode) and the status-line
+ * Mode indicators: the mode badge event (pi-run-mode:change) and the status-line
  * label (via ctx.ui.setStatus). ask has no badge label (null); it still gets a
  * status label.
  */

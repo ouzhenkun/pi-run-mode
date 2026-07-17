@@ -42,7 +42,7 @@ export async function runPermissionPrompt(
 
   if (decision.prompt === "diff" && req.kind === "write") {
     const filePath = req.path;
-    const result = await approveDialog(ctx, {
+    const result = await approveDialog(pi, ctx, {
       title: `${event.toolName}`,
       body: filePath,
       items: [
@@ -51,10 +51,8 @@ export async function runPermissionPrompt(
       ],
       onWaitApprove: () => {
         pi.events.emit(EV_NOTIFY, {
-          type: "review",
-          title: "✏️ Approval Needed",
+          type: "approval-needed",
           body: dirname(filePath) !== "." ? dirname(filePath) : "",
-          sound: "question",
         });
       },
     });
@@ -64,7 +62,7 @@ export async function runPermissionPrompt(
 
   if (decision.prompt === "patch") {
     const patch = String(input.patch ?? input.diff ?? JSON.stringify(input)).slice(0, 2000);
-    const result = await approveDialog(ctx, {
+    const result = await approveDialog(pi, ctx, {
       title: "apply_patch",
       body: patch,
       items: [
@@ -74,10 +72,8 @@ export async function runPermissionPrompt(
       maxBodyLines: 16,
       onWaitApprove: () => {
         pi.events.emit(EV_NOTIFY, {
-          type: "review",
-          title: "📎️ Approval Needed",
+          type: "approval-needed",
           body: extractPatchFiles(patch),
-          sound: "question",
         });
       },
     });
@@ -92,7 +88,7 @@ export async function runPermissionPrompt(
 
     // auto risky bash (auto mode): session allowance UI, no AI review.
     if (decision.sessionAllow) {
-      const result = await approveDialog(ctx, {
+      const result = await approveDialog(pi, ctx, {
         title: `bash (${req.bashKind})`,
         body: `${preview}\n\nAllow session = same command only, until reload/restart`,
         items: [
@@ -102,10 +98,8 @@ export async function runPermissionPrompt(
         ],
         onWaitApprove: () => {
           pi.events.emit(EV_NOTIFY, {
-            type: "review",
-            title: "🔧️ Approval Needed",
+            type: "approval-needed",
             body: "$ " + (cmd.split("\n")[0] ?? "").slice(0, 78),
-            sound: "question",
           });
         },
       });
@@ -115,7 +109,7 @@ export async function runPermissionPrompt(
     }
 
     // ask mode: show the human prompt immediately; AI review is advisory only.
-    const result = await approveDialog(ctx, {
+    const result = await approveDialog(pi, ctx, {
       title: `bash (${req.bashKind})`,
       body: preview,
       items: [
@@ -127,10 +121,8 @@ export async function runPermissionPrompt(
       onAutoAllowChange: (v) => { state.autoAllowAiSafe = v; },
       onWaitApprove: () => {
         pi.events.emit(EV_NOTIFY, {
-            type: "review",
-            title: "🔧️ Approval Needed",
-            body: "$ " + (cmd.split("\n")[0] ?? "").slice(0, 78),
-            sound: "question",
+          type: "approval-needed",
+          body: "$ " + (cmd.split("\n")[0] ?? "").slice(0, 78),
         });
       },
     });
@@ -151,7 +143,7 @@ export async function runPermissionPrompt(
 function extractPatchFiles(patch: string): string {
   const matches = [...patch.matchAll(/^\+{3}\s+(?:b\/)?([\S]+)/gm)];
   if (matches.length === 0) return "patch";
-  const files = matches.map((m) => basename(m[1])).filter(Boolean);
+  const files = matches.map((match) => basename(match[1])).filter(Boolean);
   if (files.length === 0) return "patch";
   if (files.length === 1) return files[0];
   if (files.length === 2) return `${files[0]}, ${files[1]}`;

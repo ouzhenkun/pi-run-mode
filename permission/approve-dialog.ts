@@ -10,6 +10,7 @@
  * Allow/Deny is always authoritative.
  */
 
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import {
   Input,
   matchesKey,
@@ -18,6 +19,7 @@ import {
   wrapTextWithAnsi,
 } from "@earendil-works/pi-tui";
 import type { AIReviewResult } from "../review/ai-review.ts";
+import { withModal } from "../core/modal.ts";
 
 export interface ApproveDialogItem {
   value: string;
@@ -379,11 +381,12 @@ class ApproveDialog {
 }
 
 export async function approveDialog(
+  pi: ExtensionAPI,
   ctx: any,
   options: ApproveDialogOptions,
 ): Promise<ApproveDialogResult> {
-  return ctx.ui.custom(
+  return withModal(pi, () => ctx.ui.custom(
     (tui: any, theme: any, _kb: any, done: (r: ApproveDialogResult) => void) =>
       new ApproveDialog(options, theme, tui, done),
-  );
+  ));
 }
