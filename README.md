@@ -64,9 +64,6 @@ Plan content is written to `~/.pi/agent/plans/<sessionId>.md`.
 
 Create `~/.pi/agent/pi-run-mode.json`:
 
-If you still have a pre-extract `agent-mode.json`, the first load migrates it
-automatically (writes `pi-run-mode.json` and removes the old file).
-
 ```json
 {
   "modeModels": {

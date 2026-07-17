@@ -19,7 +19,9 @@ export type SetMode = (newMode: Mode) => Promise<void>;
 // Session log customType — kept stable so old sessions still restore mode.
 export const STATE_ENTRY_TYPE = "agent-mode-state";
 
-const AGENT_DIR = join(homedir(), ".pi", "agent");
-export const STATE_FILE_PATH = join(AGENT_DIR, "pi-run-mode.json");
-// Pre-extract filename; loadStateFile migrates once then removes it.
-export const LEGACY_STATE_FILE_PATH = join(AGENT_DIR, "agent-mode.json");
+export const STATE_FILE_PATH = join(
+  homedir(),
+  ".pi",
+  "agent",
+  "pi-run-mode.json",
+);

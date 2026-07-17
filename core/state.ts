@@ -9,7 +9,7 @@
  * strict subset of the runtime state.
  */
 
-import { readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import type {
   ExtensionAPI,
   ExtensionContext,
@@ -18,7 +18,6 @@ import type { HardDeny } from "../permission/policy.ts";
 import type { AIReviewConfig } from "../review/ai-review.ts";
 import {
   DEFAULT_MODE,
-  LEGACY_STATE_FILE_PATH,
   MODES,
   STATE_ENTRY_TYPE,
   STATE_FILE_PATH,
@@ -85,20 +84,6 @@ export function createRuntimeState(): RuntimeState {
 export function loadStateFile(): AgentModeState {
   try {
     return JSON.parse(readFileSync(STATE_FILE_PATH, "utf-8"));
-  } catch {
-    // fall through to legacy path
-  }
-  try {
-    const legacy = JSON.parse(
-      readFileSync(LEGACY_STATE_FILE_PATH, "utf-8"),
-    ) as AgentModeState;
-    try {
-      writeFileSync(STATE_FILE_PATH, JSON.stringify(legacy, null, 2));
-      unlinkSync(LEGACY_STATE_FILE_PATH);
-    } catch {
-      // best-effort migrate; still return the loaded legacy content
-    }
-    return legacy;
   } catch {
     return {};
   }
