@@ -128,6 +128,47 @@ Outbound bus only (no hard dependencies). Listen if you want to react:
 | `pi-run-mode:notify` | `{ type: "approval-needed" \| "plan-ready", body: string }` | Approval wait and plan ready |
 | `pi-run-mode:modal` | `{ phase: "open" \| "close" }` | Approval or model-selection dialog open/close |
 
+### Footer integration
+
+Display mode changes with Pi's status API:
+
+```ts
+let ui: { setStatus(key: string, text: string | undefined): void } | null = null;
+
+pi.on("session_start", (_event, ctx) => {
+  ui = ctx.ui;
+});
+
+pi.events.on("pi-run-mode:change", (data) => {
+  const { label } = data as { label: string | null };
+  ui?.setStatus("run-mode", label ?? undefined);
+});
+```
+
+Ask emits `null`, while plan and auto emit their styled display labels.
+
+### Notification integration
+
+Example mapping from `pi-run-mode:notify` to [pi-terminal-notifier](https://www.npmjs.com/package/pi-terminal-notifier) for native macOS notifications:
+
+```ts
+pi.events.on("pi-run-mode:notify", (data) => {
+  const event = data as {
+    type: "approval-needed" | "plan-ready";
+    body: string;
+  };
+  const planReady = event.type === "plan-ready";
+
+  pi.events.emit("pi-terminal-notifier:notify", {
+    title: planReady ? "📋 Plan Ready" : "✏️ Approval Needed",
+    body: event.body,
+    sound: planReady ? "plan-ready" : "question",
+  });
+});
+```
+
+Notification presentation is handled by the consuming extension.
+
 ## Notes
 
 - Subagent / headless sessions without UI re-decide under **auto** rules; actions that would still prompt are blocked.
