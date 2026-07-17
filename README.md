@@ -84,7 +84,7 @@ Create `~/.pi/agent/pi-run-mode.json`:
     "write": [".env", ".env.*", "*.pem", "*.key", "~/.ssh", "~/.aws/credentials"],
     "bash": []
   },
-  "aiReview": {
+  "askAiReview": {
     "autoApproval": true,
     "provider": "deepseek",
     "model": "deepseek-v4-flash"
@@ -99,7 +99,7 @@ Create `~/.pi/agent/pi-run-mode.json`:
 | `syncModels` | Modes that share one model (changes propagate across the group) |
 | `hardDeny.read/write` | Glob-ish path denylist (basename patterns match any dir) |
 | `hardDeny.bash` | Substring / regex-source denylist against raw commands |
-| `aiReview` | Model used for ask-mode bash safety advisory; `autoApproval` seeds the session checkbox |
+| `askAiReview` | Model used for ask-mode bash safety advisory; `autoApproval` seeds the session checkbox |
 
 Session state (current mode + `modeModels`) is also persisted in the session log.
 

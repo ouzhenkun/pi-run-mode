@@ -31,7 +31,7 @@ export type AgentModeState = {
   modeModels?: Record<Mode, ModelRef | null>;
   syncModels?: Mode[];
   hardDeny?: HardDeny;
-  aiReview?: AIReviewConfig;
+  askAiReview?: AIReviewConfig;
   /** Key chord for cycling modes (e.g. "alt+m"). null/omit/"" = command only. */
   cycleShortcut?: string | null;
 };
@@ -48,7 +48,7 @@ export interface RuntimeState {
   // Cross-mode hard-deny rules (user config), applied before mode decisions.
   hardDeny: HardDeny;
   // AI review config (provider + model for bash safety checks in ask mode).
-  aiReviewConfig: AIReviewConfig;
+  askAiReviewConfig: AIReviewConfig;
   // auto-mode risky-bash allowances: exact commands allowed this session only.
   sessionAllowedBash: Set<string>;
   // ask-mode: user-enabled auto-allow on AI-safe bash, this session only.
@@ -72,7 +72,7 @@ export function createRuntimeState(): RuntimeState {
     currentModelRef: null,
     syncModels: ["ask", "auto"],
     hardDeny: {},
-    aiReviewConfig: {},
+    askAiReviewConfig: {},
     sessionAllowedBash: new Set<string>(),
     autoAllowAiSafe: false,
     planTurnsSinceInject: 0,
@@ -98,7 +98,7 @@ export function saveStateFile(state: AgentModeState): void {
     const merged: AgentModeState = { ...state };
     if (existing.syncModels) merged.syncModels = existing.syncModels;
     if (existing.hardDeny) merged.hardDeny = existing.hardDeny;
-    if (existing.aiReview) merged.aiReview = existing.aiReview;
+    if (existing.askAiReview) merged.askAiReview = existing.askAiReview;
     if (existing.cycleShortcut !== undefined) {
       merged.cycleShortcut = existing.cycleShortcut;
     }

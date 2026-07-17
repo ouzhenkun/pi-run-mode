@@ -116,7 +116,7 @@ export async function runPermissionPrompt(
         { value: "allow", label: "Allow" },
         { value: "deny", label: "Deny" },
       ],
-      runReview: (signal) => reviewBash(cmd, req.bashKind, ctx, state.aiReviewConfig, signal),
+      runReview: (signal) => reviewBash(cmd, req.bashKind, ctx, state.askAiReviewConfig, signal),
       autoAllowInitial: state.autoAllowAiSafe,
       onAutoAllowChange: (v) => { state.autoAllowAiSafe = v; },
       onWaitApprove: () => {

@@ -85,11 +85,11 @@ export default function agentModeExtension(pi: ExtensionAPI): void {
     if (fileState.hardDeny && typeof fileState.hardDeny === "object") {
       state.hardDeny = fileState.hardDeny;
     }
-    if (fileState.aiReview && typeof fileState.aiReview === "object") {
-      state.aiReviewConfig = fileState.aiReview;
+    if (fileState.askAiReview && typeof fileState.askAiReview === "object") {
+      state.askAiReviewConfig = fileState.askAiReview;
     }
     state.sessionAllowedBash.clear();
-    state.autoAllowAiSafe = state.aiReviewConfig.autoApproval ?? false;
+    state.autoAllowAiSafe = state.askAiReviewConfig.autoApproval ?? false;
     alignSyncGroup(state);
 
     // 2. Session entries override file state (most recent wins).
