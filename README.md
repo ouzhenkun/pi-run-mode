@@ -145,7 +145,6 @@ review/           AI bash review, model picker
 
 - Subagent / headless sessions without UI re-decide under **auto** rules; actions that would still prompt are blocked.
 - AI review never self-approves: timeout, abort, or failure → human prompt.
-- Not the same as `pi-modes` (tool disable lists) or `pi-agent-mode` (markdown agent personas).
 
 ## License
 
