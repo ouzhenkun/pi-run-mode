@@ -82,11 +82,6 @@ export async function reviewBash(
         headers: auth.headers,
         signal,
         maxTokens: 40,
-        onPayload: (payload: any) => {
-          // Disable thinking to reduce latency.
-          payload.thinking = { type: "disabled" };
-          return payload;
-        },
       },
     );
 
