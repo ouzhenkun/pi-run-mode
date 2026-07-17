@@ -2,9 +2,14 @@
 
 **ask / plan / auto run modes for pi — permission gate, plan lifecycle, and AI bash review.**
 
+[![npm version](https://img.shields.io/npm/v/pi-run-mode?style=for-the-badge)](https://www.npmjs.com/package/pi-run-mode)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
-> Not published to npm yet. Install from GitHub.
+## Install
+
+```bash
+pi install npm:pi-run-mode
+```
 
 ## Why
 
@@ -12,7 +17,7 @@ Pi starts open by default. pi-run-mode adds three run modes so you can stay in f
 
 | Mode | Behavior |
 |------|----------|
-| **ask** | Writes and risky bash need approval (diff/patch preview). Optional AI review can auto-allow read-only bash. |
+| **ask** | Writes and risky bash need approval (diff/patch preview). Optional AI review advises on bash safety and can auto-allow safe commands when explicitly enabled for the session. |
 | **plan** | Read-only exploration. Only the session plan file may be written. Model enters via `plan_start` and exits via `plan_approve`. |
 | **auto** | Writes and most bash run freely; risky bash still prompts (Allow once / Allow session / Deny). |
 
@@ -20,7 +25,7 @@ Cross-mode **hardDeny** blocks sensitive paths and dangerous bash with no prompt
 
 ### Ask mode — bash review
 
-In **ask**, mutating/risky bash opens an approval dialog. AI review is advisory (never self-approves); with **Auto-allow AI-safe this session** checked, a **safe** verdict starts a short countdown and auto-submits Allow.
+In **ask**, mutating/risky bash opens an approval dialog. AI review is advisory by default; with **Auto-allow AI-safe this session** checked, a **safe** verdict starts a short countdown and auto-submits Allow.
 
 **Review (needs human):**
 
@@ -32,17 +37,38 @@ In **ask**, mutating/risky bash opens an approval dialog. AI review is advisory 
 
 ### Plan mode — approve to execute
 
-In **plan**, the model writes a plan file then calls `plan_approve`. You choose **Execute** (current auto model), **Execute with…** (pick model), or **Stay in plan mode**.
+In **plan**, the model writes a plan file then calls `plan_approve`. You choose **Execute** (switch to auto and restore its configured model), **Execute with…** (switch to auto and pick another model), or **Stay in plan mode**.
 
 ![plan mode approve dialog](assets/plan-approve.png)
 
-## Install
+### Mode and model flow
 
-```bash
-pi install git:https://github.com/ouzhenkun/pi-run-mode.git
+```text
+ask / auto
+  │
+  └─ plan_start
+       ↓
+plan (GPT-5.5)
+  ├─ Stay ──────────────────────→ plan (GPT-5.5)
+  ├─ Execute ───────────────────→ auto (DeepSeek V4 Flash)
+  └─ Execute with… → pick model → auto (selected model)
 ```
 
-Reload with `/reload` or restart pi.
+Mode transitions automatically restore the model configured in `modeModels`.
+
+**Enter Plan:**
+
+- Ask naturally, such as “plan this first.”
+- Let the model call `plan_start` when planning is warranted.
+- Run `/run-mode plan`, start with `pi --plan`, or use the configured cycle shortcut.
+
+**Approve Plan:**
+
+- **Execute** → switch to auto with `modeModels.auto`.
+- **Execute with…** → switch to auto with the selected model.
+- **Stay in plan mode** → remain in Plan with `modeModels.plan`.
+
+`plan_start` is intended for work that benefits from planning, such as multi-file changes, architectural decisions, unclear requirements, or meaningful implementation trade-offs. A stronger model alone does not trigger Plan.
 
 ## Usage
 
@@ -50,8 +76,9 @@ Reload with `/reload` or restart pi.
 |--------|-----|
 | Show mode | `/run-mode` |
 | Set mode | `/run-mode ask` · `/run-mode plan` · `/run-mode auto` |
-| Cycle mode | `/run-mode toggle` (or configured shortcut) |
-| Start in plan | `pi --plan` |
+| Request planning | Ask naturally (for example, “plan this first”); the model calls `plan_start` |
+| Cycle mode | `/run-mode toggle` (or configured shortcut): ask → plan → auto |
+| Start pi in plan | `pi --plan` |
 
 No cycle shortcut is registered by default (pi’s default `Shift+Tab` cycles thinking level). Set `cycleShortcut` in config if you want a key.
 
@@ -61,22 +88,24 @@ Avoid legacy ctrl letters that collide with control characters — e.g. `ctrl+m`
 
 | Tool | Purpose |
 |------|---------|
-| `plan_start` | Enter plan mode (read-only transition; no confirm) |
-| `plan_approve` | Request exit: Execute / Execute with… / Stay |
+| `plan_start` | Enter read-only Plan mode |
+| `plan_approve` | Request Execute / Execute with… / Stay |
 
 Plan content is written to `~/.pi/agent/plans/<sessionId>.md`.
 
 ## Configuration
 
-Create `~/.pi/agent/pi-run-mode.json`:
+Create `~/.pi/agent/pi-run-mode.json`.
+
+This example uses a stronger model for planning and a cheaper model for everyday approval and execution:
 
 ```json
 {
   "cycleShortcut": "alt+m",
   "modeModels": {
-    "ask": { "provider": "xai-auth", "id": "grok-4.5" },
-    "plan": { "provider": "anthropic", "id": "claude-sonnet-4" },
-    "auto": { "provider": "xai-auth", "id": "grok-4.5" }
+    "ask": { "provider": "deepseek", "id": "deepseek-v4-flash" },
+    "plan": { "provider": "openai", "id": "gpt-5.5" },
+    "auto": { "provider": "deepseek", "id": "deepseek-v4-flash" }
   },
   "syncModels": ["ask", "auto"],
   "hardDeny": {
@@ -95,11 +124,13 @@ Create `~/.pi/agent/pi-run-mode.json`:
 | Field | Description |
 |-------|-------------|
 | `cycleShortcut` | Optional key chord to cycle modes (e.g. `alt+m`). Omit / `null` / `""` = command only. Change requires `/reload`. |
-| `modeModels` | Per-mode model binding; restored on mode switch / session start |
-| `syncModels` | Modes that share one model (changes propagate across the group) |
+| `modeModels` | Per-mode model binding; restored on mode switch / session start. This allows a stronger planning model and a cheaper execution model. |
+| `syncModels` | Modes that share one model (changes propagate across the group). Remove modes from this list when each should keep an independent binding. |
 | `hardDeny.read/write` | Glob-ish path denylist (basename patterns match any dir) |
 | `hardDeny.bash` | Substring / regex-source denylist against raw commands |
 | `askAiReview` | Model used for ask-mode bash safety advisory; `autoApproval` seeds the session checkbox |
+
+Provider and model IDs are examples. Replace them with IDs available in your pi model registry.
 
 Session state (current mode + `modeModels`) is also persisted in the session log.
 
@@ -111,23 +142,13 @@ Outbound bus only (no hard dependencies). Listen if you want to react:
 |-------|---------|------|
 | `pi-run-mode:change` | `{ label: string \| null }` | Mode changes (ask → `null`) |
 | `pi-run-mode:notify` | `{ type: "approval-needed" \| "plan-ready", body: string }` | Approval wait and plan ready |
-| `pi-run-mode:modal` | `{ phase: "open" \| "close" }` | Plan approval dialog open/close |
-
-## Architecture
-
-```
-index.ts          bootstrap + session restore
-core/             runtime state, persistence, model binding
-modes/            setMode, optional cycle shortcut, /run-mode, indicators
-plan/             plan tools, lifecycle hooks, plan file, prompt
-permission/       tool_call gate, policy, approve dialogs, bash classifier
-review/           AI bash review, model picker
-```
+| `pi-run-mode:modal` | `{ phase: "open" \| "close" }` | Approval or model-selection dialog open/close |
 
 ## Notes
 
 - Subagent / headless sessions without UI re-decide under **auto** rules; actions that would still prompt are blocked.
-- AI review never self-approves: timeout, abort, or failure → human prompt.
+- AI review is advisory by default. Auto-allow only runs when explicitly enabled for the session and the review returns safe.
+- Timeout, abort, or review failure always falls back to human approval.
 
 ## License
 
