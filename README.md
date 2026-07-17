@@ -95,15 +95,16 @@ Create `~/.pi/agent/pi-run-mode.json`:
 
 Session state (current mode + `modeModels`) is also persisted in the session log.
 
-## Soft integrations
+## Events
 
-Optional event bus (no hard dependency):
+pi-run-mode only emits its own bus names (no hard dependency on other packages).
+Wire a thin bridge if you want footer / desktop notify / next-cue integration.
 
-| Event | Purpose |
-|-------|---------|
-| `pi:footer-mode` | `{ label }` for footer mode badge (e.g. footer-hub) |
-| `pi:notify` | Desktop notify on approvals / plan-ready / input needed (e.g. pi-notify) |
-| `pi-next-cue:pause` / `resume` | Pause next-cue while approval modals are open |
+| Event | Payload | When |
+|-------|---------|------|
+| `pi-run-mode:mode` | `{ label: string \| null }` | Mode changes (ask → `null`) |
+| `pi-run-mode:notify` | `{ type?, title, body, sound?, … }` | Approval wait, plan ready, input needed |
+| `pi-run-mode:modal` | `{ phase: "open" \| "close" }` | Plan approval dialog open/close |
 
 ## Architecture
 

@@ -12,10 +12,11 @@ import {
   type ExtensionAPI,
   type ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
+import { EV_NOTIFY } from "../core/events.ts";
+import type { RuntimeState } from "../core/state.ts";
+import { reviewBash } from "../review/ai-review.ts";
 import { approveDialog } from "./approve-dialog.ts";
 import type { PermissionRequest } from "./policy.ts";
-import { reviewBash } from "../review/ai-review.ts";
-import type { RuntimeState } from "../core/state.ts";
 
 export type PromptDecision = {
   prompt: "diff" | "patch" | "bash";
@@ -49,7 +50,7 @@ export async function runPermissionPrompt(
         { value: "deny", label: "Deny" },
       ],
       onWaitApprove: () => {
-        pi.events.emit("pi:notify", {
+        pi.events.emit(EV_NOTIFY, {
           type: "review",
           title: "✏️ Approval Needed",
           body: dirname(filePath) !== "." ? dirname(filePath) : "",
@@ -72,7 +73,7 @@ export async function runPermissionPrompt(
       ],
       maxBodyLines: 16,
       onWaitApprove: () => {
-        pi.events.emit("pi:notify", {
+        pi.events.emit(EV_NOTIFY, {
           type: "review",
           title: "📎️ Approval Needed",
           body: extractPatchFiles(patch),
@@ -100,7 +101,7 @@ export async function runPermissionPrompt(
           { value: "deny", label: "Deny" },
         ],
         onWaitApprove: () => {
-          pi.events.emit("pi:notify", {
+          pi.events.emit(EV_NOTIFY, {
             type: "review",
             title: "🔧️ Approval Needed",
             body: "$ " + (cmd.split("\n")[0] ?? "").slice(0, 78),
@@ -125,7 +126,7 @@ export async function runPermissionPrompt(
       autoAllowInitial: state.autoAllowAiSafe,
       onAutoAllowChange: (v) => { state.autoAllowAiSafe = v; },
       onWaitApprove: () => {
-        pi.events.emit("pi:notify", {
+        pi.events.emit(EV_NOTIFY, {
             type: "review",
             title: "🔧️ Approval Needed",
             body: "$ " + (cmd.split("\n")[0] ?? "").slice(0, 78),

@@ -25,6 +25,7 @@
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { EV_NOTIFY } from "./core/events.ts";
 import {
   createRuntimeState,
   loadStateFile,
@@ -137,7 +138,7 @@ export default function agentModeExtension(pi: ExtensionAPI): void {
     ).slice(0, 80);
     const question: string = (input?.questions?.[0]?.question ?? "").slice(0, 200);
     const body: string = [subtitle, question].filter(Boolean).join("\n");
-    pi.events.emit("pi:notify", {
+    pi.events.emit(EV_NOTIFY, {
       type: "question",
       title: "✋ Input Needed",
       body,

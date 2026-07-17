@@ -9,12 +9,13 @@
 
 import { Type } from "typebox";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { EV_MODAL, EV_NOTIFY } from "../core/events.ts";
+import type { RuntimeState } from "../core/state.ts";
+import type { SetMode } from "../core/types.ts";
 import { approveDialog } from "../permission/approve-dialog.ts";
 import { pickModel } from "../review/model-picker.ts";
 import { getPlanPath, planExists, readPlan } from "./plan-file.ts";
 import { buildPlanPrompt, buildReentryNotice } from "./prompt.ts";
-import type { RuntimeState } from "../core/state.ts";
-import type { SetMode } from "../core/types.ts";
 
 const STAY_LABEL = "Stay in plan mode";
 const EXECUTE_LABEL = "Execute";
@@ -75,7 +76,7 @@ export function registerPlanTools(
       ].filter(Boolean);
       const executeLabel = getExecuteLabel();
       ctx.ui.setWorkingVisible(false);
-      pi.events.emit("pi-next-cue:pause");
+      pi.events.emit(EV_MODAL, { phase: "open" });
       const planResult = await approveDialog(ctx, {
         title: "Plan ready",
         items: [
@@ -84,7 +85,7 @@ export function registerPlanTools(
           { value: "stay", label: STAY_LABEL },
         ],
         onWaitApprove: () => {
-          pi.events.emit("pi:notify", {
+          pi.events.emit(EV_NOTIFY, {
             type: "plan-ready",
             title: "📋 Plan Ready",
             body:
@@ -93,7 +94,7 @@ export function registerPlanTools(
           });
         },
       });
-      pi.events.emit("pi-next-cue:resume");
+      pi.events.emit(EV_MODAL, { phase: "close" });
       ctx.ui.setWorkingVisible(true);
 
       if (!planResult) {

@@ -1,20 +1,21 @@
 /**
- * Mode indicators: the footer badge (via pi:footer-mode) and the status-line
- * label (via ctx.ui.setStatus). ask has no footer badge (footer-hub shows the
- * default); it still gets a status label.
+ * Mode indicators: the mode badge event (pi-run-mode:mode) and the status-line
+ * label (via ctx.ui.setStatus). ask has no badge label (null); it still gets a
+ * status label.
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { EV_MODE } from "../core/events.ts";
 import type { Mode } from "../core/types.ts";
 import type { RuntimeState } from "../core/state.ts";
 
 export function emitFooterMode(pi: ExtensionAPI, state: RuntimeState): void {
   const labels: Record<Mode, string | null> = {
-    ask: null, // footer-hub shows default
+    ask: null, // consumers may show a default when label is null
     plan: "\x1b[38;5;36m\u{F03E4} plan\x1b[0m", // pause, teal
     auto: "\x1b[33m\u{F040A} auto\x1b[0m", // play, yellow
   };
-  pi.events.emit("pi:footer-mode", { label: labels[state.mode] });
+  pi.events.emit(EV_MODE, { label: labels[state.mode] });
 }
 
 export function updateStatus(state: RuntimeState): void {
