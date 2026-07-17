@@ -30,6 +30,12 @@ In **ask**, mutating/risky bash opens an approval dialog. AI review is advisory 
 
 ![ask mode bash review — AI-safe auto-allow](assets/ask-bash-safe-auto.png)
 
+### Plan mode — approve to execute
+
+In **plan**, the model writes a plan file then calls `plan_approve`. You choose **Execute** (current auto model), **Execute with…** (pick model), or **Stay in plan mode**.
+
+![plan mode approve dialog](assets/plan-approve.png)
+
 ## Install
 
 From GitHub (until npm publish):
