@@ -42,7 +42,7 @@ export interface ApproveDialogOptions {
   autoAllowInitial?: boolean;
   /** Notified on every checkbox toggle, so the caller can persist the flag. */
   onAutoAllowChange?: (v: boolean) => void;
-  onWaitApprove?: () => void;
+  onWaitApprove?: (review?: AIReviewResult) => void;
 }
 
 type AIState =
@@ -361,7 +361,11 @@ class ApproveDialog {
     if (this.hasFiredWait) return;
     if (!this.options.onWaitApprove) return;
     this.hasFiredWait = true;
-    this.options.onWaitApprove();
+    const review =
+      this.aiState.status === "safe" || this.aiState.status === "review"
+        ? { decision: this.aiState.status, reason: this.aiState.reason }
+        : undefined;
+    this.options.onWaitApprove(review);
   }
 
   private submit(): void {

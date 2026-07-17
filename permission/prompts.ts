@@ -119,10 +119,14 @@ export async function runPermissionPrompt(
       runReview: (signal) => reviewBash(cmd, req.bashKind, ctx, state.askAiReviewConfig, signal),
       autoAllowInitial: state.autoAllowAiSafe,
       onAutoAllowChange: (v) => { state.autoAllowAiSafe = v; },
-      onWaitApprove: () => {
+      onWaitApprove: (review) => {
+        const command = "$ " + (cmd.split("\n")[0] ?? "").slice(0, 78);
+        const verdict = review
+          ? `${review.decision === "safe" ? "Safe" : "Review"}${review.reason ? `: ${review.reason}` : ""}`
+          : "";
         pi.events.emit(EV_NOTIFY, {
           type: "approval-needed",
-          body: "$ " + (cmd.split("\n")[0] ?? "").slice(0, 78),
+          body: [verdict, command].filter(Boolean).join("\n"),
         });
       },
     });
