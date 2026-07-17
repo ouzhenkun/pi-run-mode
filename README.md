@@ -55,6 +55,8 @@ Reload with `/reload` or restart pi.
 
 No cycle shortcut is registered by default (pi’s default `Shift+Tab` cycles thinking level). Set `cycleShortcut` in config if you want a key.
 
+Avoid legacy ctrl letters that collide with control characters — e.g. `ctrl+m` is the same byte as Enter, `ctrl+i` is Tab, `ctrl+[` is Escape. Prefer `shift+tab`, `alt+m`, or chords with more than one modifier.
+
 ### Plan tools (model-driven)
 
 | Tool | Purpose |
