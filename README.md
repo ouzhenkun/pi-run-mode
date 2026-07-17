@@ -1,6 +1,6 @@
 # pi-run-mode
 
-**ask / plan / auto run modes for pi — permission gate, plan lifecycle, and AI bash review.**
+**Ask, plan, and auto workflows for pi — control permissions, plan safely, and execute with the right model.**
 
 [![npm version](https://img.shields.io/npm/v/pi-run-mode?style=for-the-badge)](https://www.npmjs.com/package/pi-run-mode)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
@@ -149,7 +149,7 @@ Ask emits `null`, while plan and auto emit their styled display labels.
 
 ### Notification integration
 
-Example mapping from `pi-run-mode:notify` to [pi-terminal-notifier](https://www.npmjs.com/package/pi-terminal-notifier) for native macOS notifications:
+Example mapping from `pi-run-mode:notify` to [pi-terminal-notifier](https://pi.dev/packages/pi-terminal-notifier) for native macOS notifications:
 
 ```ts
 pi.events.on("pi-run-mode:notify", (data) => {
