@@ -20,9 +20,15 @@ Cross-mode **hardDeny** blocks sensitive paths and dangerous bash with no prompt
 
 ### Ask mode — bash review
 
-In **ask**, mutating/risky bash opens an approval dialog. AI review is advisory (never self-approves); you can enable **Auto-allow AI-safe this session** for later read-only commands.
+In **ask**, mutating/risky bash opens an approval dialog. AI review is advisory (never self-approves); with **Auto-allow AI-safe this session** checked, a **safe** verdict starts a short countdown and auto-submits Allow.
 
-![ask mode bash review dialog](assets/ask-bash-review.png)
+**Review (needs human):**
+
+![ask mode bash review — mutating needs approval](assets/ask-bash-review.png)
+
+**Safe (auto-allow countdown):**
+
+![ask mode bash review — AI-safe auto-allow](assets/ask-bash-safe-auto.png)
 
 ## Install
 
