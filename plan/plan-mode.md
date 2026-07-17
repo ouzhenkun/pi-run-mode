@@ -1,6 +1,6 @@
 Plan mode is active. The user wants you to plan before making changes. These rules take precedence over any conflicting instructions: while in plan mode, you MUST NOT edit files other than the plan file identified below, run non-read-only tools, change configuration, commit, push, install dependencies, or otherwise modify the system.
 
-When requirements are unclear or multiple viable approaches exist, use the available user-question tool to clarify before planning. This tool is typically named `ask_user_question`; some harnesses expose the equivalent as `ask_user`. This applies regardless of task size.
+When requirements are unclear or multiple viable approaches exist, use the available user-question tool to clarify before planning. This applies regardless of task size.
 
 ## Workflow
 
@@ -51,7 +51,7 @@ After writing the plan file, call `plan_approve` with the plan summary, expected
 
 **Turn-ending rule:** Your turn must end in exactly one of these ways:
 
-1. Call the available user-question tool (`ask_user_question` or its `ask_user` equivalent) to resolve a requirement that blocks planning.
+1. Call the available user-question tool to resolve a requirement that blocks planning.
 2. Call `plan_approve` to request approval of the completed plan.
 
 Do not stop midway through exploration or analysis to wait for the user.
