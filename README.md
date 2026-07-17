@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
-> Not published to npm yet. Install from GitHub or a local path.
+> Not published to npm yet. Install from GitHub.
 
 ## Why
 
@@ -38,24 +38,8 @@ In **plan**, the model writes a plan file then calls `plan_approve`. You choose 
 
 ## Install
 
-From GitHub (until npm publish):
-
 ```bash
 pi install git:https://github.com/ouzhenkun/pi-run-mode.git
-```
-
-Local development (this repo as a package path):
-
-```bash
-pi install ./pkgs/pi-run-mode
-```
-
-Or add to `~/.pi/agent/settings.json`:
-
-```json
-{
-  "packages": ["./pkgs/pi-run-mode"]
-}
 ```
 
 Reload with `/reload` or restart pi.
@@ -69,9 +53,7 @@ Reload with `/reload` or restart pi.
 | Cycle mode | `/run-mode toggle` (or configured shortcut) |
 | Start in plan | `pi --plan` |
 
-No cycle shortcut is registered by default — pi already uses `Shift+Tab` for
-thinking level. Set `cycleShortcut` in config if you want a key (and free that
-key from pi's `keybindings.json` if needed).
+No cycle shortcut is registered by default (pi’s default `Shift+Tab` cycles thinking level). Set `cycleShortcut` in config if you want a key.
 
 ### Plan tools (model-driven)
 
@@ -121,8 +103,7 @@ Session state (current mode + `modeModels`) is also persisted in the session log
 
 ## Events
 
-pi-run-mode only emits its own bus names (no hard dependency on other packages).
-Wire a thin bridge if you want footer / desktop notify / next-cue integration.
+Outbound bus only (no hard dependencies). Listen if you want to react:
 
 | Event | Payload | When |
 |-------|---------|------|
