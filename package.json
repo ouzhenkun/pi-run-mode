@@ -1,0 +1,35 @@
+{
+  "name": "pi-run-mode",
+  "version": "0.1.0",
+  "description": "ask/plan/auto run modes for pi — permission gate, plan lifecycle, and AI bash review",
+  "keywords": [
+    "pi",
+    "pi-package",
+    "pi-extension",
+    "mode",
+    "plan",
+    "permission",
+    "ask",
+    "auto"
+  ],
+  "license": "MIT",
+  "author": "ouzhenkun",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ouzhenkun/pi-run-mode.git"
+  },
+  "homepage": "https://github.com/ouzhenkun/pi-run-mode",
+  "bugs": {
+    "url": "https://github.com/ouzhenkun/pi-run-mode/issues"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*",
+    "@earendil-works/pi-ai": "*"
+  },
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  }
+}
