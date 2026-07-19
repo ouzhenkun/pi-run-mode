@@ -1,6 +1,6 @@
 {
   "name": "pi-run-mode",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Ask, plan, and auto workflows for pi — control permissions, plan safely, and execute with the right model",
   "keywords": [
     "pi",
