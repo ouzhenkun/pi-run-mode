@@ -18,7 +18,7 @@ import {
   truncateToWidth,
   wrapTextWithAnsi,
 } from "@earendil-works/pi-tui";
-import type { AIReviewResult } from "../review/ai-review.ts";
+import type { AIReviewResult } from "./ai-review.ts";
 import { withModal } from "../core/modal.ts";
 
 export interface ApproveDialogItem {

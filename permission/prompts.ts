@@ -14,7 +14,7 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { EV_NOTIFY } from "../core/events.ts";
 import type { RuntimeState } from "../core/state.ts";
-import { reviewBash } from "../review/ai-review.ts";
+import { reviewBash } from "./ai-review.ts";
 import { approveDialog } from "./approve-dialog.ts";
 import type { PermissionRequest } from "./policy.ts";
 

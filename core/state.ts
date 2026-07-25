@@ -15,7 +15,7 @@ import type {
   ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
 import type { HardDeny } from "../permission/policy.ts";
-import type { AIReviewConfig } from "../review/ai-review.ts";
+import type { AIReviewConfig } from "../permission/ai-review.ts";
 import {
   DEFAULT_MODE,
   MODES,

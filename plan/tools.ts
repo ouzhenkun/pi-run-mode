@@ -13,7 +13,7 @@ import { EV_NOTIFY } from "../core/events.ts";
 import type { RuntimeState } from "../core/state.ts";
 import type { SetMode } from "../core/types.ts";
 import { approveDialog } from "../permission/approve-dialog.ts";
-import { pickModel } from "../review/model-picker.ts";
+import { pickModel } from "./model-picker.ts";
 import { getPlanPath, planExists, readPlan } from "./plan-file.ts";
 import { buildPlanPrompt, buildReentryNotice } from "./prompt.ts";
 
