@@ -86,7 +86,7 @@ This example uses a stronger model for planning and a cheaper model for everyday
 ```json
 {
   "cycleShortcut": "alt+m",
-  "cycleModes": ["auto", "plan"],
+  "cycleModes": ["auto", "ask", "plan"],
   "modeModels": {
     "ask": { "provider": "deepseek", "id": "deepseek-v4-flash" },
     "plan": { "provider": "openai", "id": "gpt-5.5" },
@@ -97,6 +97,10 @@ This example uses a stronger model for planning and a cheaper model for everyday
     "read": [".env", ".env.*", "*.pem", "*.key", "~/.ssh/id_*"],
     "write": [".env", ".env.*", "*.pem", "*.key", "~/.ssh", "~/.aws/credentials"],
     "bash": []
+  },
+  "bashClassifier": {
+    "inheritDefaults": true,
+    "risky": ["^\\s*deploy\\b"]
   },
   "askAiReview": {
     "autoApproval": true,
@@ -114,7 +118,10 @@ This example uses a stronger model for planning and a cheaper model for everyday
 | `syncModels` | Modes that share one model (changes propagate across the group). Remove modes from this list when each should keep an independent binding. |
 | `hardDeny.read/write` | Glob-ish path denylist (basename patterns match any dir) |
 | `hardDeny.bash` | Substring / regex-source denylist against raw commands |
+| `bashClassifier` | Optional regex-source arrays for `dangerous`, `readonly`, `risky`, and `mutating`. Rules extend the built-ins by default. |
 | `askAiReview` | Model used for ask-mode bash safety advisory; `autoApproval` seeds the session checkbox |
+
+`bashClassifier.inheritDefaults` defaults to `true`. Set it to `false` to replace all built-in rules; in that mode, all four rule arrays are required. Invalid configurations fall back to the built-in rules. Classification priority remains `dangerous` → `readonly` → `risky` → `mutating` → `unknown`. Dangerous commands are blocked in every mode, so replacing the defaults can remove built-in safety guards.
 
 Provider and model IDs are examples. Replace them with IDs available in your pi model registry.
 

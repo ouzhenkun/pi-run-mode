@@ -43,6 +43,7 @@ import { createSetMode, registerModeControls } from "./modes/switcher.ts";
 import { registerPlanLifecycle } from "./plan/lifecycle.ts";
 import { registerPlanTools } from "./plan/tools.ts";
 import { registerPlanReview } from "./plan/plan-review.ts";
+import { configureClassifier } from "./permission/bash-classifier.ts";
 import { registerPermissionGate } from "./permission/gate.ts";
 
 export default function agentModeExtension(pi: ExtensionAPI): void {
@@ -85,6 +86,7 @@ export default function agentModeExtension(pi: ExtensionAPI): void {
     if (fileState.hardDeny && typeof fileState.hardDeny === "object") {
       state.hardDeny = fileState.hardDeny;
     }
+    configureClassifier(fileState.bashClassifier);
     if (fileState.askAiReview && typeof fileState.askAiReview === "object") {
       state.askAiReviewConfig = fileState.askAiReview;
     }

@@ -16,6 +16,7 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import type { HardDeny } from "../permission/policy.ts";
 import type { AIReviewConfig } from "../permission/ai-review.ts";
+import type { BashClassifierConfig } from "../permission/bash-classifier.ts";
 import {
   DEFAULT_MODE,
   MODES,
@@ -31,6 +32,7 @@ export type AgentModeState = {
   modeModels?: Record<Mode, ModelRef | null>;
   syncModels?: Mode[];
   hardDeny?: HardDeny;
+  bashClassifier?: BashClassifierConfig;
   askAiReview?: AIReviewConfig;
   /** Key chord for cycling modes (e.g. "alt+m"). null/omit/"" = command only. */
   cycleShortcut?: string | null;
@@ -103,6 +105,7 @@ export function saveStateFile(state: AgentModeState): void {
     const merged: AgentModeState = { ...state };
     if (existing.syncModels) merged.syncModels = existing.syncModels;
     if (existing.hardDeny) merged.hardDeny = existing.hardDeny;
+    if (existing.bashClassifier) merged.bashClassifier = existing.bashClassifier;
     if (existing.askAiReview) merged.askAiReview = existing.askAiReview;
     if (existing.cycleShortcut !== undefined) {
       merged.cycleShortcut = existing.cycleShortcut;

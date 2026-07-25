@@ -17,8 +17,16 @@
 
 export type BashKind = "dangerous" | "readonly" | "risky" | "mutating" | "unknown";
 
+export interface BashClassifierConfig {
+  inheritDefaults?: boolean;
+  dangerous?: string[];
+  readonly?: string[];
+  risky?: string[];
+  mutating?: string[];
+}
+
 // Irreversible or remote-code-execution patterns. Always hard-blocked.
-const DANGEROUS: RegExp[] = [
+const DEFAULT_DANGEROUS: RegExp[] = [
   /(?:^|[;&|])\s*rm\s+-[a-z]*r[a-z]*f|(?:^|[;&|])\s*rm\s+-[a-z]*f[a-z]*r/, // rm -rf / -fr
   /(?:^|[;&|])\s*chmod\s+-R/,
   /(?:^|[;&|])\s*chown\s+-R/,
@@ -29,7 +37,7 @@ const DANGEROUS: RegExp[] = [
 ];
 
 // No-side-effect inspection commands. The only bash allowed in plan mode.
-const READONLY: RegExp[] = [
+const DEFAULT_READONLY: RegExp[] = [
   /^\s*pwd\s*$/,
   /^\s*(?:ls|ll)\b/,
   /^\s*(?:cat|bat|head|tail|less|wc)\b/,
@@ -42,7 +50,7 @@ const READONLY: RegExp[] = [
 ];
 
 // Runs arbitrary code or mutates environment; prompt in auto, deny in plan.
-const RISKY: RegExp[] = [
+const DEFAULT_RISKY: RegExp[] = [
   // /(?:^|[;&|])\s*node\s+(?:-e|--eval)\b/,
   // /(?:^|[;&|])\s*(?:python|python3)\s+-c\b/,
   // /(?:^|[;&|])\s*(?:deno|bun)\s+eval\b/,
@@ -51,13 +59,12 @@ const RISKY: RegExp[] = [
   // /(?:^|[;&|])\s*(?:brew|apt|apt-get|dnf|pacman|port)\s+install\b/,
   // /(?:^|[;&|])\s*npx\b/,
   /(?:^|[;&|])\s*(?:sudo|eval|exec)\b/,
-  /(?:^|[;&|])\s*git\s+merge\b(?=[^\n;&|]*\b(?:release\/qa|origin\/release\/qa|qa)\b)/,
   /(?:^|[;&|])\s*git\s+reset\s+--hard/,
   /(?:^|[;&|])\s*git\s+clean\s+.*-[a-z]*[fd]/,
 ];
 
 // Ordinary filesystem / VCS mutations.
-const MUTATING: RegExp[] = [
+const DEFAULT_MUTATING: RegExp[] = [
   /(?:^|[;&|])\s*(?:rm|rmdir)\s/,
   /(?:^|[;&|])\s*(?:cp|mv|ln)\s/,
   /(?:^|[;&|])\s*(?:mkdir|touch)\s/,
@@ -69,6 +76,73 @@ const MUTATING: RegExp[] = [
   /(?:^|[;&|])\s*git\s+(?:commit|push|add|rm|mv|checkout|switch|merge|rebase|tag|apply|restore|revert|cherry-pick|stash(?!\s+list))\b/,
 ];
 
+const RULE_KEYS = ["dangerous", "readonly", "risky", "mutating"] as const;
+type RuleKey = (typeof RULE_KEYS)[number];
+type ClassifierRules = Record<RuleKey, RegExp[]>;
+
+function defaultRules(): ClassifierRules {
+  return {
+    dangerous: [...DEFAULT_DANGEROUS],
+    readonly: [...DEFAULT_READONLY],
+    risky: [...DEFAULT_RISKY],
+    mutating: [...DEFAULT_MUTATING],
+  };
+}
+
+let activeRules = defaultRules();
+
+function useDefaults(reason: string): false {
+  activeRules = defaultRules();
+  console.warn(`[pi-run-mode] ${reason}; using built-in bash classifier rules.`);
+  return false;
+}
+
+/** Apply user-authored classifier rules. Invalid configs reset to defaults. */
+export function configureClassifier(config?: BashClassifierConfig): boolean {
+  if (config === undefined) {
+    activeRules = defaultRules();
+    return true;
+  }
+  if (!config || typeof config !== "object" || Array.isArray(config)) {
+    return useDefaults("bashClassifier must be an object");
+  }
+
+  const inheritDefaults = config.inheritDefaults ?? true;
+  if (typeof inheritDefaults !== "boolean") {
+    return useDefaults("bashClassifier.inheritDefaults must be a boolean");
+  }
+
+  const custom = {} as ClassifierRules;
+  for (const kind of RULE_KEYS) {
+    const patterns = config[kind];
+    if (!inheritDefaults && patterns === undefined) {
+      return useDefaults(`bashClassifier.${kind} is required when inheritDefaults is false`);
+    }
+    if (patterns !== undefined && (!Array.isArray(patterns) || patterns.some((p) => typeof p !== "string"))) {
+      return useDefaults(`bashClassifier.${kind} must be an array of regex strings`);
+    }
+    try {
+      custom[kind] = (patterns ?? []).map((pattern) => new RegExp(pattern));
+    } catch {
+      return useDefaults(`bashClassifier.${kind} contains an invalid regular expression`);
+    }
+  }
+
+  if (!inheritDefaults) {
+    activeRules = custom;
+    return true;
+  }
+
+  const defaults = defaultRules();
+  activeRules = {
+    dangerous: [...defaults.dangerous, ...custom.dangerous],
+    readonly: [...defaults.readonly, ...custom.readonly],
+    risky: [...defaults.risky, ...custom.risky],
+    mutating: [...defaults.mutating, ...custom.mutating],
+  };
+  return true;
+}
+
 /**
  * Classify a bash command into a risk bucket.
  * Multi-line/compound commands are matched against the whole string, so any
@@ -76,10 +150,10 @@ const MUTATING: RegExp[] = [
  */
 export function classifyBash(command: string): BashKind {
   const cmd = command ?? "";
-  if (DANGEROUS.some((re) => re.test(cmd))) return "dangerous";
+  if (activeRules.dangerous.some((re) => re.test(cmd))) return "dangerous";
   if (isReadOnly(cmd)) return "readonly";
-  if (RISKY.some((re) => re.test(cmd))) return "risky";
-  if (MUTATING.some((re) => re.test(cmd))) return "mutating";
+  if (activeRules.risky.some((re) => re.test(cmd))) return "risky";
+  if (activeRules.mutating.some((re) => re.test(cmd))) return "mutating";
   return "unknown";
 }
 
@@ -90,14 +164,14 @@ export function classifyBash(command: string): BashKind {
 export function isReadOnly(command: string): boolean {
   const cmd = command ?? "";
   // Reject if any dangerous/mutating/risky pattern is present anywhere.
-  if (DANGEROUS.some((re) => re.test(cmd))) return false;
-  if (MUTATING.some((re) => re.test(cmd))) return false;
-  if (RISKY.some((re) => re.test(cmd))) return false;
+  if (activeRules.dangerous.some((re) => re.test(cmd))) return false;
+  if (activeRules.mutating.some((re) => re.test(cmd))) return false;
+  if (activeRules.risky.some((re) => re.test(cmd))) return false;
   // Split on command separators; every segment must match a readonly pattern.
   const segments = cmd
     .split(/(?:&&|\|\||;)/) // bare | is NOT a separator — it appears inside quoted patterns (e.g. rg "foo|bar")
     .map((s) => s.trim())
     .filter(Boolean);
   if (segments.length === 0) return false;
-  return segments.every((seg) => READONLY.some((re) => re.test(seg)));
+  return segments.every((seg) => activeRules.readonly.some((re) => re.test(seg)));
 }
