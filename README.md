@@ -61,7 +61,7 @@ plan (GPT-5.5)
 | Show mode | `/run-mode` |
 | Set mode | `/run-mode ask` · `/run-mode plan` · `/run-mode auto` |
 | Request planning | Ask naturally (for example, “plan this first”); the model calls `plan_start` |
-| Cycle mode | `/run-mode toggle` (or configured shortcut): ask → plan → auto |
+| Cycle mode | `/run-mode toggle` (or configured shortcut): follows `cycleModes` order |
 | Start pi in plan | `pi --plan` |
 
 No cycle shortcut is registered by default (pi’s default `Shift+Tab` cycles thinking level). Set `cycleShortcut` in config if you want a key.
@@ -86,6 +86,7 @@ This example uses a stronger model for planning and a cheaper model for everyday
 ```json
 {
   "cycleShortcut": "alt+m",
+  "cycleModes": ["auto", "plan"],
   "modeModels": {
     "ask": { "provider": "deepseek", "id": "deepseek-v4-flash" },
     "plan": { "provider": "openai", "id": "gpt-5.5" },
@@ -108,6 +109,7 @@ This example uses a stronger model for planning and a cheaper model for everyday
 | Field | Description |
 |-------|-------------|
 | `cycleShortcut` | Optional key chord to cycle modes (e.g. `alt+m`). Omit / `null` / `""` = command only. Change requires `/reload`. |
+| `cycleModes` | Ordered list of active modes for cycling and default startup (e.g. `["auto", "plan"]`). First entry = default mode. Omit to keep `["ask", "plan", "auto"]`. |
 | `modeModels` | Per-mode model binding; restored on mode switch / session start. This allows a stronger planning model and a cheaper execution model. |
 | `syncModels` | Modes that share one model (changes propagate across the group). Remove modes from this list when each should keep an independent binding. |
 | `hardDeny.read/write` | Glob-ish path denylist (basename patterns match any dir) |

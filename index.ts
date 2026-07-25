@@ -92,6 +92,15 @@ export default function agentModeExtension(pi: ExtensionAPI): void {
     state.autoAllowAiSafe = state.askAiReviewConfig.autoApproval ?? false;
     alignSyncGroup(state);
 
+    // Config cycleModes: first entry = default, cycle order.
+    if (Array.isArray(fileState.cycleModes)) {
+      const valid = fileState.cycleModes.filter((m): m is Mode => MODES.includes(m));
+      if (valid.length > 0) {
+        state.cycleModes = valid;
+        state.mode = valid[0];
+      }
+    }
+
     // 2. Session entries override file state (most recent wins).
     restoreState(state, ctx);
 

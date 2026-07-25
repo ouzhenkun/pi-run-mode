@@ -54,8 +54,9 @@ export function registerModeControls(
   cycleShortcut: string | null,
 ): void {
   async function cycleMode(): Promise<void> {
-    const idx = MODES.indexOf(state.mode);
-    const next = MODES[(idx + 1) % MODES.length];
+    const order = state.cycleModes;
+    const idx = order.indexOf(state.mode);
+    const next = order[(idx + 1) % order.length];
     await setMode(next);
   }
 
@@ -80,8 +81,8 @@ export function registerModeControls(
           ? ` · shortcut: ${cycleShortcut}`
           : "";
         ctx.ui.notify(
-          `Mode: ${state.mode} (ask → plan → auto)${shortcutHint}\n` +
-            `Usage: /run-mode ask|plan|auto · /run-mode toggle`,
+          `Mode: ${state.mode} (${state.cycleModes.join(" → ")})${shortcutHint}\n` +
+            `Usage: /run-mode ${state.cycleModes.join("|")} · /run-mode toggle`,
           "info",
         );
         return;

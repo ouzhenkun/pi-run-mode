@@ -34,10 +34,14 @@ export type AgentModeState = {
   askAiReview?: AIReviewConfig;
   /** Key chord for cycling modes (e.g. "alt+m"). null/omit/"" = command only. */
   cycleShortcut?: string | null;
+  /** Ordered list of active modes. First = default, determines cycle order. */
+  cycleModes?: Mode[];
 };
 
 export interface RuntimeState {
   mode: Mode;
+  /** Ordered list for cycling; first entry is the default startup mode. */
+  cycleModes: Mode[];
   currentCtx?: ExtensionContext;
   currentSessionId?: string;
   modeModels: Record<Mode, ModelRef | null>;
@@ -68,6 +72,7 @@ export interface RuntimeState {
 export function createRuntimeState(): RuntimeState {
   return {
     mode: DEFAULT_MODE,
+    cycleModes: MODES,
     modeModels: { ask: null, plan: null, auto: null },
     currentModelRef: null,
     syncModels: ["ask", "auto"],
@@ -101,6 +106,9 @@ export function saveStateFile(state: AgentModeState): void {
     if (existing.askAiReview) merged.askAiReview = existing.askAiReview;
     if (existing.cycleShortcut !== undefined) {
       merged.cycleShortcut = existing.cycleShortcut;
+    }
+    if (Array.isArray(existing.cycleModes) && existing.cycleModes.length > 0) {
+      merged.cycleModes = existing.cycleModes;
     }
     writeFileSync(STATE_FILE_PATH, JSON.stringify(merged, null, 2));
   } catch {} // best-effort
