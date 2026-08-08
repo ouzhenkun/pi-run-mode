@@ -2,7 +2,7 @@
  * Bash command classifier.
  *
  * Classifies a bash command into one of five risk buckets. Rules are
- * intentionally coarse — this is a workflow guardrail, not a security sandbox.
+ * intentionally coarse - this is a workflow guardrail, not a security sandbox.
  * Order matters: dangerous > readonly > risky > mutating > unknown.
  *
  * - dangerous: destructive / irreversible / remote-exec-piped-to-shell.
@@ -27,7 +27,7 @@ export interface BashClassifierConfig {
 
 // Irreversible or remote-code-execution patterns. Always hard-blocked.
 const DEFAULT_DANGEROUS: RegExp[] = [
-  /(?:^|[;&|])\s*rm\s+-[a-z]*r[a-z]*f|(?:^|[;&|])\s*rm\s+-[a-z]*f[a-z]*r/, // rm -rf / -fr
+  /(?:^|[;&|])\s*rm\s+-(?:[a-z]*r[a-z]*f|[a-z]*f[a-z]*r)\s+(?!\/tmp(?:\/|$)|\/private\/tmp(?:\/|$)|\/var\/tmp(?:\/|$)|\/var\/folders(?:\/|$))/, // rm -rf / -fr, except temp dirs (lookahead is coarse: /tmp/../etc slips through)
   /(?:^|[;&|])\s*chmod\s+-R/,
   /(?:^|[;&|])\s*chown\s+-R/,
   /(?:^|[;&|])\s*dd\s+.*of=/,
@@ -169,7 +169,7 @@ export function isReadOnly(command: string): boolean {
   if (activeRules.risky.some((re) => re.test(cmd))) return false;
   // Split on command separators; every segment must match a readonly pattern.
   const segments = cmd
-    .split(/(?:&&|\|\||;)/) // bare | is NOT a separator — it appears inside quoted patterns (e.g. rg "foo|bar")
+    .split(/(?:&&|\|\||;)/) // bare | is NOT a separator - it appears inside quoted patterns (e.g. rg "foo|bar")
     .map((s) => s.trim())
     .filter(Boolean);
   if (segments.length === 0) return false;
