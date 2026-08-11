@@ -29,6 +29,7 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import {
   createRuntimeState,
   loadStateFile,
+  normalizeModeModels,
   persistState,
   resolveCycleShortcut,
   restoreState,
@@ -76,7 +77,10 @@ export default function agentModeExtension(pi: ExtensionAPI): void {
     // 1. Load cross-session config from file (lower priority than session).
     const fileState = loadStateFile();
     if (fileState.modeModels) {
-      state.modeModels = { ...state.modeModels, ...fileState.modeModels };
+      state.modeModels = {
+        ...state.modeModels,
+        ...normalizeModeModels(fileState.modeModels),
+      };
     }
     if (Array.isArray(fileState.syncModels)) {
       state.syncModels = fileState.syncModels.filter((m): m is Mode =>
@@ -128,6 +132,9 @@ export default function agentModeExtension(pi: ExtensionAPI): void {
         await pi.setModel(model);
       }
     }
+
+    const thinkingLevel = state.modeModels[state.mode]?.thinkingLevel;
+    if (thinkingLevel) pi.setThinkingLevel(thinkingLevel);
 
     state.planPromptInjected = false;
     state.planTurnsSinceInject = 0;

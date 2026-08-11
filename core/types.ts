@@ -11,7 +11,29 @@ export type Mode = "ask" | "plan" | "auto";
 export const MODES: Mode[] = ["ask", "plan", "auto"];
 export const DEFAULT_MODE: Mode = "ask";
 
-export type ModelRef = { provider: string; id: string };
+export type ThinkingLevel =
+  | "off"
+  | "minimal"
+  | "low"
+  | "medium"
+  | "high"
+  | "xhigh"
+  | "max";
+export const THINKING_LEVELS: ThinkingLevel[] = [
+  "off",
+  "minimal",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+  "max",
+];
+
+export type ModelRef = {
+  provider: string;
+  id: string;
+  thinkingLevel?: ThinkingLevel;
+};
 
 // A mode switch. Defined here so plan/ and modes/ share it without coupling.
 export type SetMode = (newMode: Mode) => Promise<void>;

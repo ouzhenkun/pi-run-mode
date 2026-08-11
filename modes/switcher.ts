@@ -13,6 +13,8 @@ import { emitFooterMode, updateStatus } from "./indicator.ts";
 export function createSetMode(pi: ExtensionAPI, state: RuntimeState): SetMode {
   return async function setMode(newMode: Mode): Promise<void> {
     if (newMode === state.mode) {
+      const current = state.modeModels[state.mode];
+      if (current) current.thinkingLevel = pi.getThinkingLevel();
       persistState(pi, state);
       updateStatus(state);
       emitFooterMode(pi, state);
@@ -21,10 +23,12 @@ export function createSetMode(pi: ExtensionAPI, state: RuntimeState): SetMode {
     // Record transition for the plan lifecycle one-shot notice.
     if (newMode === "plan") state.modeTransition = "to_plan";
     else if (state.mode === "plan") state.modeTransition = "from_plan";
-    // Save current model to current mode before switching.
+    // Save the current model and thinking level before switching.
     if (state.currentModelRef) {
       applyModelToSyncGroup(state, state.mode, state.currentModelRef);
     }
+    const current = state.modeModels[state.mode];
+    if (current) current.thinkingLevel = pi.getThinkingLevel();
     state.mode = newMode;
     // Entering plan resets the inject throttle.
     if (newMode === "plan") {
@@ -41,6 +45,8 @@ export function createSetMode(pi: ExtensionAPI, state: RuntimeState): SetMode {
         await pi.setModel(model);
       }
     }
+    const thinkingLevel = state.modeModels[newMode]?.thinkingLevel;
+    if (thinkingLevel) pi.setThinkingLevel(thinkingLevel);
     persistState(pi, state);
     updateStatus(state);
     emitFooterMode(pi, state);

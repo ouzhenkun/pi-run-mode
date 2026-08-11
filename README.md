@@ -88,9 +88,9 @@ This example uses a stronger model for planning and a cheaper model for everyday
   "cycleShortcut": "alt+m",
   "cycleModes": ["auto", "ask", "plan"],
   "modeModels": {
-    "ask": { "provider": "deepseek", "id": "deepseek-v4-flash" },
-    "plan": { "provider": "openai", "id": "gpt-5.5" },
-    "auto": { "provider": "deepseek", "id": "deepseek-v4-flash" }
+    "ask": { "provider": "deepseek", "id": "deepseek-v4-flash", "thinkingLevel": "medium" },
+    "plan": { "provider": "openai", "id": "gpt-5.5", "thinkingLevel": "high" },
+    "auto": { "provider": "deepseek", "id": "deepseek-v4-flash", "thinkingLevel": "low" }
   },
   "syncModels": ["ask", "auto"],
   "hardDeny": {
@@ -114,7 +114,7 @@ This example uses a stronger model for planning and a cheaper model for everyday
 |-------|-------------|
 | `cycleShortcut` | Optional key chord to cycle modes (e.g. `alt+m`). Omit / `null` / `""` = command only. Change requires `/reload`. |
 | `cycleModes` | Ordered list of active modes for cycling and default startup (e.g. `["auto", "plan"]`). First entry = default mode. Omit to keep `["ask", "plan", "auto"]`. |
-| `modeModels` | Per-mode model binding; restored on mode switch / session start. This allows a stronger planning model and a cheaper execution model. |
+| `modeModels` | Per-mode model binding; restored on mode switch / session start. Each binding accepts an optional `thinkingLevel` (`off`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`), which is saved automatically when switching modes. |
 | `syncModels` | Modes that share one model (changes propagate across the group). Remove modes from this list when each should keep an independent binding. |
 | `hardDeny.read/write` | Glob-ish path denylist (basename patterns match any dir) |
 | `hardDeny.bash` | Substring / regex-source denylist against raw commands |
@@ -125,7 +125,7 @@ This example uses a stronger model for planning and a cheaper model for everyday
 
 Provider and model IDs are examples. Replace them with IDs available in your pi model registry.
 
-Session state (current mode + `modeModels`) is also persisted in the session log.
+Session state (current mode + `modeModels`, including `thinkingLevel`) is also persisted in the session log.
 
 ## Events
 

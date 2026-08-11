@@ -22,8 +22,10 @@ import {
   MODES,
   STATE_ENTRY_TYPE,
   STATE_FILE_PATH,
+  THINKING_LEVELS,
   type Mode,
   type ModelRef,
+  type ThinkingLevel,
 } from "./types.ts";
 
 // Persisted config-file shape (pi-run-mode.json). `modeModels` is owned by the
@@ -100,7 +102,7 @@ export function loadStateFile(): AgentModeState {
 
 export function saveStateFile(state: AgentModeState): void {
   try {
-    // Preserve user-authored keys across writes — this owns modeModels only.
+    // Preserve user-authored keys across writes.
     const existing = loadStateFile();
     const merged: AgentModeState = { ...state };
     if (existing.syncModels) merged.syncModels = existing.syncModels;
@@ -126,6 +128,37 @@ export function resolveCycleShortcut(
   return s.length > 0 ? s : null;
 }
 
+export function normalizeModeModels(
+  value: unknown,
+): Partial<Record<Mode, ModelRef | null>> {
+  if (!value || typeof value !== "object") return {};
+  const source = value as Record<string, unknown>;
+  const normalized: Partial<Record<Mode, ModelRef | null>> = {};
+  for (const mode of MODES) {
+    const ref = source[mode];
+    if (ref === null) {
+      normalized[mode] = null;
+      continue;
+    }
+    if (!ref || typeof ref !== "object") continue;
+    const candidate = ref as Record<string, unknown>;
+    if (typeof candidate.provider !== "string" || typeof candidate.id !== "string") {
+      continue;
+    }
+    const thinkingLevel = THINKING_LEVELS.includes(
+      candidate.thinkingLevel as ThinkingLevel,
+    )
+      ? (candidate.thinkingLevel as ThinkingLevel)
+      : undefined;
+    normalized[mode] = {
+      provider: candidate.provider,
+      id: candidate.id,
+      ...(thinkingLevel ? { thinkingLevel } : {}),
+    };
+  }
+  return normalized;
+}
+
 export function persistState(pi: ExtensionAPI, state: RuntimeState): void {
   pi.appendEntry(STATE_ENTRY_TYPE, {
     mode: state.mode,
@@ -138,7 +171,10 @@ export function restoreState(state: RuntimeState, ctx: ExtensionContext): void {
   const entries = ctx.sessionManager.getEntries() as Array<{
     type: string;
     customType?: string;
-    data?: { mode?: Mode; modeModels?: Record<Mode, ModelRef | null> };
+    data?: {
+      mode?: Mode;
+      modeModels?: Record<Mode, ModelRef | null>;
+    };
   }>;
   const entry = entries.findLast(
     (e) => e.type === "custom" && e.customType === STATE_ENTRY_TYPE,
@@ -147,6 +183,21 @@ export function restoreState(state: RuntimeState, ctx: ExtensionContext): void {
     state.mode = entry.data.mode;
   }
   if (entry?.data?.modeModels) {
-    state.modeModels = { ...state.modeModels, ...entry.data.modeModels };
+    const restored = normalizeModeModels(entry.data.modeModels);
+    for (const mode of MODES) {
+      const ref = restored[mode];
+      if (ref === undefined) continue;
+      if (ref === null) {
+        state.modeModels[mode] = null;
+        continue;
+      }
+      const thinkingLevel = ref.thinkingLevel ??
+        state.modeModels[mode]?.thinkingLevel;
+      state.modeModels[mode] = {
+        provider: ref.provider,
+        id: ref.id,
+        ...(thinkingLevel ? { thinkingLevel } : {}),
+      };
+    }
   }
 }

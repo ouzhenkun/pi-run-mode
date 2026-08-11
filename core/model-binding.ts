@@ -12,9 +12,17 @@ export function applyModelToSyncGroup(
   forMode: Mode,
   ref: ModelRef,
 ): void {
-  state.modeModels[forMode] = { ...ref };
+  const bindModel = (mode: Mode): void => {
+    const thinkingLevel = state.modeModels[mode]?.thinkingLevel;
+    state.modeModels[mode] = {
+      provider: ref.provider,
+      id: ref.id,
+      ...(thinkingLevel ? { thinkingLevel } : {}),
+    };
+  };
+  bindModel(forMode);
   if (state.syncModels.includes(forMode)) {
-    for (const m of state.syncModels) state.modeModels[m] = { ...ref };
+    for (const mode of state.syncModels) bindModel(mode);
   }
 }
 
@@ -24,5 +32,14 @@ export function alignSyncGroup(state: RuntimeState): void {
   if (state.syncModels.length <= 1) return;
   const shared =
     state.syncModels.map((m) => state.modeModels[m]).find(Boolean) ?? null;
-  if (shared) for (const m of state.syncModels) state.modeModels[m] = { ...shared };
+  if (shared) {
+    for (const mode of state.syncModels) {
+      const thinkingLevel = state.modeModels[mode]?.thinkingLevel;
+      state.modeModels[mode] = {
+        provider: shared.provider,
+        id: shared.id,
+        ...(thinkingLevel ? { thinkingLevel } : {}),
+      };
+    }
+  }
 }
