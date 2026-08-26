@@ -38,6 +38,7 @@ import { MODES, type Mode } from "./core/types.ts";
 import {
   alignSyncGroup,
   applyModelToSyncGroup,
+  switchModel,
 } from "./core/model-binding.ts";
 import { emitFooterMode, updateStatus } from "./modes/indicator.ts";
 import { createSetMode, registerModeControls } from "./modes/switcher.ts";
@@ -129,7 +130,7 @@ export default function agentModeExtension(pi: ExtensionAPI): void {
         (model.provider !== state.currentModelRef?.provider ||
           model.id !== state.currentModelRef?.id)
       ) {
-        await pi.setModel(model);
+        await switchModel(pi, state, model);
       }
     }
 
@@ -149,6 +150,25 @@ export default function agentModeExtension(pi: ExtensionAPI): void {
   pi.on("model_select", async (event, _ctx) => {
     state.currentModelRef = { provider: event.model.provider, id: event.model.id };
     applyModelToSyncGroup(state, state.mode, state.currentModelRef);
+    persistState(pi, state);
+  });
+
+  // Track thinking-level changes too; without this a mid-mode level switch
+  // (built-in cycle / /thinking) only lands in the binding on the next mode switch.
+  // Propagating through the sync group is intentional: syncModels share one
+  // model, so their thinking level follows too (ask/auto stay in lockstep;
+  // plan is outside the group and keeps its own level).
+  pi.on("thinking_level_select", async (event, _ctx) => {
+    // Ignore level changes emitted by pi.setModel() while a model switch is in
+    // flight — that is the forced default level, not a user choice; setMode
+    // re-applies the real per-mode level right after the switch.
+    if (state.modelSwitchDepth > 0) return;
+    const ref = state.currentModelRef;
+    if (!ref) return;
+    applyModelToSyncGroup(state, state.mode, {
+      ...ref,
+      thinkingLevel: event.level,
+    });
     persistState(pi, state);
   });
 

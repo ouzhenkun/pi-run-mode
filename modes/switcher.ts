@@ -5,7 +5,7 @@
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { applyModelToSyncGroup } from "../core/model-binding.ts";
+import { applyModelToSyncGroup, switchModel } from "../core/model-binding.ts";
 import { persistState, type RuntimeState } from "../core/state.ts";
 import { MODES, type Mode, type SetMode } from "../core/types.ts";
 import { emitFooterMode, updateStatus } from "./indicator.ts";
@@ -42,7 +42,7 @@ export function createSetMode(pi: ExtensionAPI, state: RuntimeState): SetMode {
         state.modeModels[newMode]!.id,
       );
       if (model) {
-        await pi.setModel(model);
+        await switchModel(pi, state, model);
       }
     }
     const thinkingLevel = state.modeModels[newMode]?.thinkingLevel;

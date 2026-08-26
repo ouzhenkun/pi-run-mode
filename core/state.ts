@@ -71,6 +71,12 @@ export interface RuntimeState {
   // Most recent mode transition, so before_agent_start can emit a one-shot
   // exit/reentry notice. Cleared after injection.
   modeTransition: "to_plan" | "from_plan" | null;
+  // Counts in-flight setModel() calls. pi's setModel forces the default
+  // thinking level (settings defaultThinkingLevel) and emits
+  // thinking_level_select — that event is a forced side effect, not a user
+  // choice, so handlers must ignore it while any model switch is in flight.
+  // A counter (not a boolean) survives overlapping setModel calls.
+  modelSwitchDepth: number;
 }
 
 export function createRuntimeState(): RuntimeState {
@@ -89,6 +95,7 @@ export function createRuntimeState(): RuntimeState {
     lastExitPlanApproval: null,
     lastExitPlanNote: null,
     modeTransition: null,
+    modelSwitchDepth: 0,
   };
 }
 
