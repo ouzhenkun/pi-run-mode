@@ -146,7 +146,7 @@ export function registerPlanTools(
     name: "plan_start",
     label: "Enter Plan Mode",
     description:
-      "Call this tool proactively when the task is non-trivial (multi-file changes, architectural decisions, unclear requirements, multiple viable approaches) to request entering plan mode and plan before executing. Do not call for simple tasks (single-line fixes, explicit instructions, small tweaks) or pure research/exploration tasks.",
+      "Call this tool proactively when the task is non-trivial (architectural decisions, cross-module behavior changes, unclear requirements, multiple viable approaches) to request entering plan mode and plan before executing. Do not call for simple tasks (single-line fixes, explicit instructions, small tweaks) or pure research/exploration tasks.",
     parameters: Type.Object({
       reason: Type.String({
         description: "Why this task needs planning first",
