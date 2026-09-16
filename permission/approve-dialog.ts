@@ -384,11 +384,45 @@ class ApproveDialog {
   }
 }
 
+function dialogBody(options: ApproveDialogOptions): string {
+  const descriptions = options.items
+    .filter((item) => item.description)
+    .map((item) => `${item.label}: ${item.description}`);
+  return [options.body, ...descriptions].filter(Boolean).join("\n\n");
+}
+
+async function rpcApproveDialog(
+  ctx: any,
+  options: ApproveDialogOptions,
+): Promise<ApproveDialogResult> {
+  // RPC hosts can forward Pi's standard UI methods but cannot render custom
+  // TUI components. Skip the advisory review here: its terminal-only countdown
+  // could otherwise approve a remote action without a host response.
+  options.onWaitApprove?.();
+
+  const body = dialogBody(options);
+  const allow = options.items.find((item) => item.value === "allow");
+  const deny = options.items.find((item) => item.value === "deny");
+  if (options.items.length === 2 && allow && deny) {
+    const confirmed = await ctx.ui.confirm(options.title, body);
+    return { value: confirmed ? allow.value : deny.value, note: "" };
+  }
+
+  const labels = options.items.map((item) => item.label);
+  const title = body ? `${options.title}\n\n${body}` : options.title;
+  const selected = await ctx.ui.select(title, labels);
+  const index = labels.indexOf(selected);
+  return index >= 0 ? { value: options.items[index].value, note: "" } : null;
+}
+
 export async function approveDialog(
   pi: ExtensionAPI,
   ctx: any,
   options: ApproveDialogOptions,
 ): Promise<ApproveDialogResult> {
+  if (ctx.mode === "rpc") {
+    return withModal(pi, () => rpcApproveDialog(ctx, options));
+  }
   return withModal(pi, () => ctx.ui.custom(
     (tui: any, theme: any, _kb: any, done: (r: ApproveDialogResult) => void) =>
       new ApproveDialog(options, theme, tui, done),

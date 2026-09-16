@@ -99,12 +99,14 @@ export default function agentModeExtension(pi: ExtensionAPI): void {
     state.autoAllowAiSafe = state.askAiReviewConfig.autoApproval ?? false;
     alignSyncGroup(state);
 
-    // Config cycleModes: first entry = default, cycle order.
+    // Config cycleModes controls the cycle order. Its first mode remains the
+    // TUI default; RPC hosts start conservatively in ask mode unless the
+    // resumed session has persisted a different mode below.
     if (Array.isArray(fileState.cycleModes)) {
       const valid = fileState.cycleModes.filter((m): m is Mode => MODES.includes(m));
       if (valid.length > 0) {
         state.cycleModes = valid;
-        state.mode = valid[0];
+        if (ctx.mode === "tui") state.mode = valid[0];
       }
     }
 
