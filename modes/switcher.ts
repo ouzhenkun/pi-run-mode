@@ -12,9 +12,15 @@ import { emitFooterMode, updateStatus } from "./indicator.ts";
 
 export function createSetMode(pi: ExtensionAPI, state: RuntimeState): SetMode {
   return async function setMode(newMode: Mode): Promise<void> {
+    // RPC hosts own model selection (see index.ts session_start): the mode
+    // binding neither overwrites their model nor records it into the config.
+    const hostOwnsModel = state.currentCtx?.mode === "rpc";
+
     if (newMode === state.mode) {
-      const current = state.modeModels[state.mode];
-      if (current) current.thinkingLevel = pi.getThinkingLevel();
+      if (!hostOwnsModel) {
+        const current = state.modeModels[state.mode];
+        if (current) current.thinkingLevel = pi.getThinkingLevel();
+      }
       persistState(pi, state);
       updateStatus(state);
       emitFooterMode(pi, state);
@@ -23,12 +29,14 @@ export function createSetMode(pi: ExtensionAPI, state: RuntimeState): SetMode {
     // Record transition for the plan lifecycle one-shot notice.
     if (newMode === "plan") state.modeTransition = "to_plan";
     else if (state.mode === "plan") state.modeTransition = "from_plan";
-    // Save the current model and thinking level before switching.
-    if (state.currentModelRef) {
-      applyModelToSyncGroup(state, state.mode, state.currentModelRef);
+    if (!hostOwnsModel) {
+      // Save the current model and thinking level before switching.
+      if (state.currentModelRef) {
+        applyModelToSyncGroup(state, state.mode, state.currentModelRef);
+      }
+      const current = state.modeModels[state.mode];
+      if (current) current.thinkingLevel = pi.getThinkingLevel();
     }
-    const current = state.modeModels[state.mode];
-    if (current) current.thinkingLevel = pi.getThinkingLevel();
     state.mode = newMode;
     // Entering plan resets the inject throttle.
     if (newMode === "plan") {
@@ -36,7 +44,7 @@ export function createSetMode(pi: ExtensionAPI, state: RuntimeState): SetMode {
       state.planTurnsSinceInject = 0;
     }
     // Restore model for target mode.
-    if (state.modeModels[newMode] && state.currentCtx) {
+    if (!hostOwnsModel && state.modeModels[newMode] && state.currentCtx) {
       const model = state.currentCtx.modelRegistry.find(
         state.modeModels[newMode]!.provider,
         state.modeModels[newMode]!.id,
@@ -45,7 +53,9 @@ export function createSetMode(pi: ExtensionAPI, state: RuntimeState): SetMode {
         await switchModel(pi, state, model);
       }
     }
-    const thinkingLevel = state.modeModels[newMode]?.thinkingLevel;
+    const thinkingLevel = hostOwnsModel
+      ? undefined
+      : state.modeModels[newMode]?.thinkingLevel;
     if (thinkingLevel) pi.setThinkingLevel(thinkingLevel);
     persistState(pi, state);
     updateStatus(state);

@@ -123,8 +123,14 @@ export default function agentModeExtension(pi: ExtensionAPI): void {
 
     // 4. Restore the model for the current mode, overriding pi's potentially
     //    stale default. Fallback priority: current mode > plan > auto.
-    const target =
-      state.modeModels[state.mode] ?? state.modeModels.plan ?? state.modeModels.auto;
+    //    RPC hosts own model selection — cc-connect passes --model and exposes
+    //    /model — so the mode binding must not fight their choice.
+    const hostOwnsModel = ctx.mode === "rpc";
+    const target = hostOwnsModel
+      ? undefined
+      : (state.modeModels[state.mode] ??
+        state.modeModels.plan ??
+        state.modeModels.auto);
     if (target) {
       const model = ctx.modelRegistry.find(target.provider, target.id);
       if (
@@ -136,7 +142,9 @@ export default function agentModeExtension(pi: ExtensionAPI): void {
       }
     }
 
-    const thinkingLevel = state.modeModels[state.mode]?.thinkingLevel;
+    const thinkingLevel = hostOwnsModel
+      ? undefined
+      : state.modeModels[state.mode]?.thinkingLevel;
     if (thinkingLevel) pi.setThinkingLevel(thinkingLevel);
 
     state.planPromptInjected = false;
