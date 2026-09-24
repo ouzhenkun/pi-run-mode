@@ -11,7 +11,7 @@
  *   - dangerous commands are already hard-blocked before reaching this layer.
  */
 
-import { complete, type UserMessage } from "@earendil-works/pi-ai";
+import type { UserMessage } from "@earendil-works/pi-ai";
 import type { BashKind } from "../permission/bash-classifier.ts";
 
 export interface AIReviewConfig {
@@ -64,9 +64,7 @@ export async function reviewBash(
       if (found) model = found;
     }
     if (!model) return FAIL;
-
-    const auth = await ctx.modelRegistry.getApiKeyAndHeaders(model);
-    if (!auth.ok || !auth.apiKey) return FAIL;
+    if (!ctx.modelRegistry?.hasConfiguredAuth(model)) return FAIL;
 
     const userMessage: UserMessage = {
       role: "user",
@@ -74,12 +72,10 @@ export async function reviewBash(
       timestamp: Date.now(),
     };
 
-    const response = await complete(
+    const response = await ctx.modelRegistry.complete(
       model,
       { systemPrompt: SYSTEM_PROMPT, messages: [userMessage] },
       {
-        apiKey: auth.apiKey,
-        headers: auth.headers,
         signal,
         maxTokens: 40,
       },
