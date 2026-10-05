@@ -23,6 +23,8 @@ pi-run-mode adds an ask / plan / auto workflow for balancing control, planning d
 
 Cross-mode `hardDeny` rules block sensitive paths and dangerous commands in every mode.
 
+`rm -rf` targeting verified absolute temporary subpaths (such as `/tmp/work`) is treated as an ordinary mutation: auto allows it, ask requests approval, and plan blocks it. Temporary roots, non-temporary targets, and uncertain paths remain blocked.
+
 ### Ask mode — bash review
 
 In **ask**, mutating/risky bash opens an approval dialog. AI review is advisory by default; with **Auto-allow AI-safe this session** checked, a **safe** verdict starts a short countdown and auto-submits Allow.

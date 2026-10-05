@@ -15,6 +15,8 @@
  * - unknown:   anything unmatched.
  */
 
+import { classifyRm } from "./rm-classifier.ts";
+
 export type BashKind = "dangerous" | "readonly" | "risky" | "mutating" | "unknown";
 
 export interface BashClassifierConfig {
@@ -27,7 +29,6 @@ export interface BashClassifierConfig {
 
 // Irreversible or remote-code-execution patterns. Always hard-blocked.
 const DEFAULT_DANGEROUS: RegExp[] = [
-  /(?:^|[;&|])\s*rm\s+-(?:[a-z]*r[a-z]*f|[a-z]*f[a-z]*r)\s+(?!\/tmp(?:\/|$)|\/private\/tmp(?:\/|$)|\/var\/tmp(?:\/|$)|\/var\/folders(?:\/|$))/, // rm -rf / -fr, except temp dirs (lookahead is coarse: /tmp/../etc slips through)
   /(?:^|[;&|])\s*chmod\s+-R/,
   /(?:^|[;&|])\s*chown\s+-R/,
   /(?:^|[;&|])\s*dd\s+.*of=/,
@@ -90,9 +91,11 @@ function defaultRules(): ClassifierRules {
 }
 
 let activeRules = defaultRules();
+let useBuiltinRmRules = true;
 
 function useDefaults(reason: string): false {
   activeRules = defaultRules();
+  useBuiltinRmRules = true;
   console.warn(`[pi-run-mode] ${reason}; using built-in bash classifier rules.`);
   return false;
 }
@@ -101,6 +104,7 @@ function useDefaults(reason: string): false {
 export function configureClassifier(config?: BashClassifierConfig): boolean {
   if (config === undefined) {
     activeRules = defaultRules();
+    useBuiltinRmRules = true;
     return true;
   }
   if (!config || typeof config !== "object" || Array.isArray(config)) {
@@ -128,6 +132,7 @@ export function configureClassifier(config?: BashClassifierConfig): boolean {
     }
   }
 
+  useBuiltinRmRules = inheritDefaults;
   if (!inheritDefaults) {
     activeRules = custom;
     return true;
@@ -151,9 +156,11 @@ export function configureClassifier(config?: BashClassifierConfig): boolean {
 export function classifyBash(command: string): BashKind {
   const cmd = command ?? "";
   if (activeRules.dangerous.some((re) => re.test(cmd))) return "dangerous";
-  if (isReadOnly(cmd)) return "readonly";
+  const rmKind = useBuiltinRmRules ? classifyRm(cmd) : null;
+  if (rmKind === "dangerous") return "dangerous";
+  if (!rmKind && isReadOnly(cmd)) return "readonly";
   if (activeRules.risky.some((re) => re.test(cmd))) return "risky";
-  if (activeRules.mutating.some((re) => re.test(cmd))) return "mutating";
+  if (rmKind || activeRules.mutating.some((re) => re.test(cmd))) return "mutating";
   return "unknown";
 }
 
@@ -164,6 +171,7 @@ export function classifyBash(command: string): BashKind {
 export function isReadOnly(command: string): boolean {
   const cmd = command ?? "";
   // Reject if any dangerous/mutating/risky pattern is present anywhere.
+  if (useBuiltinRmRules && classifyRm(cmd)) return false;
   if (activeRules.dangerous.some((re) => re.test(cmd))) return false;
   if (activeRules.mutating.some((re) => re.test(cmd))) return false;
   if (activeRules.risky.some((re) => re.test(cmd))) return false;
