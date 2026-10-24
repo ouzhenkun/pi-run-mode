@@ -22,6 +22,15 @@
   "bugs": {
     "url": "https://github.com/ouzhenkun/pi-run-mode/issues"
   },
+  "files": [
+    "index.ts",
+    "core/",
+    "modes/",
+    "permission/",
+    "plan/",
+    "assets/",
+    "!**/*.test.ts"
+  ],
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": ">=1.2.0",
     "@earendil-works/pi-tui": ">=1.2.0",
