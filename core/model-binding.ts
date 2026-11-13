@@ -19,10 +19,38 @@ export async function switchModel(
   pi: ExtensionAPI,
   state: RuntimeState,
   model: Parameters<ExtensionAPI["setModel"]>[0],
-): Promise<void> {
+): Promise<boolean> {
   state.modelSwitchDepth++;
   try {
-    await pi.setModel(model);
+    return await pi.setModel(model);
+  } finally {
+    state.modelSwitchDepth--;
+  }
+}
+
+export async function restoreModeModel(
+  pi: ExtensionAPI,
+  state: RuntimeState,
+  options: { fallback?: boolean; forceModel?: boolean } = {},
+): Promise<boolean> {
+  const ctx = state.currentCtx;
+  if (!ctx || ctx.mode === "rpc") return true;
+  const target = state.modeModels[state.mode] ?? (options.fallback
+    ? state.modeModels.plan ?? state.modeModels.auto
+    : null);
+  if (!target) return true;
+  const model = ctx.modelRegistry.find(target.provider, target.id);
+  if (!model) return false;
+  state.modelSwitchDepth++;
+  try {
+    if (options.forceModel || target.provider !== state.currentModelRef?.provider ||
+        target.id !== state.currentModelRef?.id) {
+      if (!await switchModel(pi, state, model)) return false;
+      state.currentModelRef = { provider: model.provider, id: model.id };
+    }
+    const level = state.modeModels[state.mode]?.thinkingLevel;
+    if (level) pi.setThinkingLevel(level);
+    return true;
   } finally {
     state.modelSwitchDepth--;
   }

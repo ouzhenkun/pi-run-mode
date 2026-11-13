@@ -9,7 +9,8 @@
  * strict subset of the runtime state.
  */
 
-import { readFileSync, writeFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
+import { readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import type {
   ExtensionAPI,
   ExtensionContext,
@@ -17,6 +18,7 @@ import type {
 import type { HardDeny } from "../permission/policy.ts";
 import type { AIReviewConfig } from "../permission/ai-review.ts";
 import type { BashClassifierConfig } from "../permission/bash-classifier.ts";
+import { alignSyncGroup, applyModelToSyncGroup } from "./model-binding.ts";
 import {
   DEFAULT_MODE,
   MODES,
@@ -28,10 +30,16 @@ import {
   type ThinkingLevel,
 } from "./types.ts";
 
-// Persisted config-file shape (pi-run-mode.json). `modeModels` is owned by the
-// extension; the rest are user-authored config.
+// Persisted config-file shape (pi-run-mode.json). `modeModels` and `projects`
+// are owned by the extension; the rest are user-authored config.
+export type ProjectModelState = {
+  enabled?: boolean;
+  modeModels?: Partial<Record<Mode, ModelRef | null>>;
+};
+
 export type AgentModeState = {
   modeModels?: Record<Mode, ModelRef | null>;
+  projects?: Record<string, ProjectModelState>;
   syncModels?: Mode[];
   hardDeny?: HardDeny;
   bashClassifier?: BashClassifierConfig;
@@ -48,6 +56,9 @@ export interface RuntimeState {
   cycleModes: Mode[];
   currentCtx?: ExtensionContext;
   currentSessionId?: string;
+  initialized: boolean;
+  projectKey?: string;
+  projectEnabled: boolean;
   modeModels: Record<Mode, ModelRef | null>;
   currentModelRef: ModelRef | null;
   // Modes that share a single model (user config). When the current mode is in
@@ -83,6 +94,8 @@ export function createRuntimeState(): RuntimeState {
   return {
     mode: DEFAULT_MODE,
     cycleModes: MODES,
+    initialized: false,
+    projectEnabled: false,
     modeModels: { ask: null, plan: null, auto: null },
     currentModelRef: null,
     syncModels: ["ask", "auto"],
@@ -99,31 +112,68 @@ export function createRuntimeState(): RuntimeState {
   };
 }
 
-export function loadStateFile(): AgentModeState {
+export function loadStateFile(strict = false): AgentModeState {
   try {
-    return JSON.parse(readFileSync(STATE_FILE_PATH, "utf-8"));
-  } catch {
+    const value = JSON.parse(readFileSync(STATE_FILE_PATH, "utf-8"));
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      throw new Error("Expected a configuration object");
+    }
+    return value;
+  } catch (error) {
+    if (strict && (error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
     return {};
   }
 }
 
 export function saveStateFile(state: AgentModeState): void {
+  // Preserve user-authored keys across writes.
+  const existing = loadStateFile(true);
+  const temporaryPath = `${STATE_FILE_PATH}.${process.pid}.${randomUUID()}.tmp`;
   try {
-    // Preserve user-authored keys across writes.
-    const existing = loadStateFile();
-    const merged: AgentModeState = { ...state };
-    if (existing.syncModels) merged.syncModels = existing.syncModels;
-    if (existing.hardDeny) merged.hardDeny = existing.hardDeny;
-    if (existing.bashClassifier) merged.bashClassifier = existing.bashClassifier;
-    if (existing.askAiReview) merged.askAiReview = existing.askAiReview;
-    if (existing.cycleShortcut !== undefined) {
-      merged.cycleShortcut = existing.cycleShortcut;
-    }
-    if (Array.isArray(existing.cycleModes) && existing.cycleModes.length > 0) {
-      merged.cycleModes = existing.cycleModes;
-    }
-    writeFileSync(STATE_FILE_PATH, JSON.stringify(merged, null, 2));
-  } catch {} // best-effort
+    writeFileSync(temporaryPath, JSON.stringify({ ...existing, ...state }, null, 2), {
+      flag: "wx",
+      mode: 0o600,
+    });
+    renameSync(temporaryPath, STATE_FILE_PATH);
+  } finally {
+    rmSync(temporaryPath, { force: true });
+  }
+}
+
+export function loadModelBindings(state: RuntimeState, config: AgentModeState): void {
+  state.modeModels = {
+    ask: null,
+    plan: null,
+    auto: null,
+    ...normalizeModeModels(config.modeModels),
+  };
+  alignSyncGroup(state);
+  const project = state.projectKey ? config.projects?.[state.projectKey] : undefined;
+  state.projectEnabled = project?.enabled === true;
+  if (!state.projectEnabled) return;
+  const overrides = normalizeModeModels(project?.modeModels);
+  for (const mode of MODES) {
+    const ref = overrides[mode];
+    if (ref) applyModelToSyncGroup(state, mode, ref);
+    else if (ref === null) state.modeModels[mode] = null;
+  }
+}
+
+export function setProjectEnabled(state: RuntimeState, enabled: boolean): boolean {
+  if (!state.projectKey) return false;
+  try {
+    const existing = loadStateFile(true);
+    saveStateFile({
+      projects: {
+        ...existing.projects,
+        [state.projectKey]: { ...existing.projects?.[state.projectKey], enabled },
+      },
+    });
+    return true;
+  } catch {
+    state.currentCtx?.ui.notify("Could not save project model settings.", "error");
+    return false;
+  }
 }
 
 /** Normalize config cycleShortcut: non-empty string → chord, else null (disabled). */
@@ -166,12 +216,50 @@ export function normalizeModeModels(
   return normalized;
 }
 
-export function persistState(pi: ExtensionAPI, state: RuntimeState): void {
+export function recordSessionState(pi: ExtensionAPI, state: RuntimeState): void {
   pi.appendEntry(STATE_ENTRY_TYPE, {
     mode: state.mode,
     modeModels: state.modeModels,
   });
-  saveStateFile({ modeModels: state.modeModels });
+}
+
+export function persistState(
+  pi: ExtensionAPI,
+  state: RuntimeState,
+  selectedMode?: Mode,
+): void {
+  if (!state.initialized) return;
+  recordSessionState(pi, state);
+  if (state.currentCtx?.mode === "rpc" || !selectedMode) return;
+  try {
+    const existing = loadStateFile(true);
+    const project = state.projectKey ? existing.projects?.[state.projectKey] : undefined;
+    state.projectEnabled = project?.enabled === true;
+    const modes = state.syncModels.includes(selectedMode)
+      ? state.syncModels
+      : [selectedMode];
+    if (state.projectEnabled && state.projectKey) {
+      const modeModels = { ...project?.modeModels };
+      for (const mode of modes) modeModels[mode] = state.modeModels[mode];
+      saveStateFile({
+        projects: {
+          ...existing.projects,
+          [state.projectKey]: { ...project, modeModels },
+        },
+      });
+    } else {
+      const modeModels = {
+        ask: null,
+        plan: null,
+        auto: null,
+        ...normalizeModeModels(existing.modeModels),
+      };
+      for (const mode of modes) modeModels[mode] = state.modeModels[mode];
+      saveStateFile({ modeModels });
+    }
+  } catch {
+    state.currentCtx?.ui.notify("Could not save model preferences.", "error");
+  }
 }
 
 export function restoreState(state: RuntimeState, ctx: ExtensionContext): void {

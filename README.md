@@ -60,7 +60,9 @@ plan (GPT-5.5)
 
 | Action | How |
 |--------|-----|
-| Show mode | `/run-mode` |
+| Show mode and model scope | `/run-mode` |
+| Enable / disable project model memory | `/run-mode project on` · `/run-mode project off` |
+| Show project model settings | `/run-mode project` |
 | Set mode | `/run-mode ask` · `/run-mode plan` · `/run-mode auto` |
 | Request planning | Ask naturally (for example, “plan this first”); the model calls `plan_start` |
 | Cycle mode | `/run-mode toggle` (or configured shortcut): follows `cycleModes` order |
@@ -116,8 +118,9 @@ This example uses a stronger model for planning and a cheaper model for everyday
 |-------|-------------|
 | `cycleShortcut` | Optional key chord to cycle modes (e.g. `alt+m`). Omit / `null` / `""` = command only. Change requires `/reload`. |
 | `cycleModes` | Ordered list of active modes for cycling and default startup (e.g. `["auto", "plan"]`). First entry = default mode. Omit to keep `["ask", "plan", "auto"]`. |
-| `modeModels` | Per-mode model binding; restored on mode switch / session start. Each binding accepts an optional `thinkingLevel` (`off`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`), which is saved automatically when switching modes. |
+| `modeModels` | Per-mode model binding; restored on mode switch / session start. Each binding accepts an optional `thinkingLevel` (`off`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`), which is saved automatically with model and thinking-level selections. |
 | `syncModels` | Modes that share one model (changes propagate across the group). Remove modes from this list when each should keep an independent binding. |
+| `projects` | Optional project model memory, managed by `/run-mode project on\|off`. Disabled by default; each project has `enabled` and optional per-mode `modeModels`. |
 | `hardDeny.read/write` | Glob-ish path denylist (basename patterns match any dir) |
 | `hardDeny.bash` | Substring / regex-source denylist against raw commands |
 | `bashClassifier` | Optional regex-source arrays for `dangerous`, `readonly`, `risky`, and `mutating`. Rules extend the built-ins by default. |
@@ -128,6 +131,47 @@ This example uses a stronger model for planning and a cheaper model for everyday
 Provider and model IDs are examples. Replace them with IDs available in your pi model registry.
 
 Session state (current mode + `modeModels`, including `thinkingLevel`) is also persisted in the session log.
+
+### Project model memory
+
+Model bindings are **global by default**. Opt in for the current project:
+
+```text
+/run-mode project on     Enable project-specific model bindings
+/run-mode project        Show the project key, scope and effective bindings
+/run-mode project off    Return to global bindings; keep saved project models
+```
+
+These commands take effect immediately. Enabling restores saved project bindings, falling back to global bindings for unconfigured modes. Disabling restores global bindings. If no mode binding exists, Pi's current model remains active. Re-enabling reuses the saved project models.
+
+While enabled, `/model`, model cycling, `/thinking`, and **Execute with…** save to the current project instead of overwriting global defaults. `syncModels` still applies. Startup, session restore, and ordinary mode switches do not overwrite saved preferences; only explicit model or thinking-level selections update the affected modes.
+
+Bindings load in this order:
+
+```text
+Project disabled: session > global > Pi's current model
+Project enabled:  session > project > global > Pi's current model
+```
+
+A resumed session keeps its own bindings; it does not overwrite newer project preferences just by resuming. An explicit `project on` or `project off` refreshes bindings from the selected scope and updates the session snapshot.
+
+The repository root, subdirectories, and linked Git worktrees share one project key. Separate clones and submodules remain independent. Non-Git directories use the canonical startup directory. No files are written into business repositories; preferences live in the existing global config:
+
+```json
+{
+  "projects": {
+    "/path/to/repository": {
+      "enabled": true,
+      "modeModels": {
+        "ask": { "provider": "deepseek", "id": "deepseek-v4-flash", "thinkingLevel": "high" },
+        "auto": { "provider": "deepseek", "id": "deepseek-v4-flash", "thinkingLevel": "high" }
+      }
+    }
+  }
+}
+```
+
+A missing entry or `enabled` other than `true` keeps global behavior. `project off` preserves these saved models but stops reading and updating them. RPC hosts retain control of model selection: they do not record model preferences and project settings are read-only there.
 
 ## Events
 

@@ -5,8 +5,15 @@
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { applyModelToSyncGroup, switchModel } from "../core/model-binding.ts";
-import { persistState, type RuntimeState } from "../core/state.ts";
+import { applyModelToSyncGroup, restoreModeModel } from "../core/model-binding.ts";
+import {
+  loadModelBindings,
+  loadStateFile,
+  persistState,
+  recordSessionState,
+  setProjectEnabled,
+  type RuntimeState,
+} from "../core/state.ts";
 import { MODES, type Mode, type SetMode } from "../core/types.ts";
 import { emitFooterMode, updateStatus } from "./indicator.ts";
 
@@ -44,19 +51,9 @@ export function createSetMode(pi: ExtensionAPI, state: RuntimeState): SetMode {
       state.planTurnsSinceInject = 0;
     }
     // Restore model for target mode.
-    if (!hostOwnsModel && state.modeModels[newMode] && state.currentCtx) {
-      const model = state.currentCtx.modelRegistry.find(
-        state.modeModels[newMode]!.provider,
-        state.modeModels[newMode]!.id,
-      );
-      if (model) {
-        await switchModel(pi, state, model);
-      }
+    if (!await restoreModeModel(pi, state)) {
+      state.currentCtx?.ui.notify("Could not restore the configured mode model.", "warning");
     }
-    const thinkingLevel = hostOwnsModel
-      ? undefined
-      : state.modeModels[newMode]?.thinkingLevel;
-    if (thinkingLevel) pi.setThinkingLevel(thinkingLevel);
     persistState(pi, state);
     updateStatus(state);
     emitFooterMode(pi, state);
@@ -79,7 +76,7 @@ export function registerModeControls(
   // Optional: omit / null / "" in config → no shortcut (avoids shift+tab vs
   // app.thinking.cycle). Set cycleShortcut in pi-run-mode.json to enable.
   if (cycleShortcut) {
-    pi.registerShortcut(cycleShortcut, {
+    pi.registerShortcut(cycleShortcut as Parameters<ExtensionAPI["registerShortcut"]>[0], {
       description: "Cycle mode: ask → plan → auto",
       handler: async () => {
         if (!state.currentCtx) return;
@@ -89,16 +86,52 @@ export function registerModeControls(
   }
 
   pi.registerCommand("run-mode", {
-    description: "Show or set run mode (ask/plan/auto); cycle with toggle",
+    description: "Set run mode, cycle with toggle, or configure project model memory",
     handler: async (args, ctx) => {
       const cmd = args.trim().toLowerCase();
+      if (cmd === "project" || cmd.startsWith("project ")) {
+        const action = cmd.slice("project".length).trim();
+        if (action !== "" && action !== "on" && action !== "off") {
+          ctx.ui.notify("Usage: /run-mode project [on|off]", "warning");
+          return;
+        }
+        if (action) {
+          if (ctx.mode === "rpc") {
+            ctx.ui.notify("RPC hosts own model selection; project settings are read-only here.", "warning");
+            return;
+          }
+          await ctx.waitForIdle();
+          if (!setProjectEnabled(state, action === "on")) return;
+          loadModelBindings(state, loadStateFile());
+          const restored = await restoreModeModel(pi, state, { fallback: true, forceModel: true });
+          recordSessionState(pi, state);
+          ctx.ui.notify(
+            `Project model memory: ${state.projectEnabled ? "on" : "off"}` +
+              (restored ? "" : " · configured model unavailable; current model unchanged"),
+            restored ? "info" : "warning",
+          );
+          return;
+        }
+        const bindings = MODES.map((mode) => {
+          const ref = state.modeModels[mode];
+          return `${mode}: ${ref ? `${ref.provider}/${ref.id}${ref.thinkingLevel ? ` (${ref.thinkingLevel})` : ""}` : "unbound (current model)"}`;
+        });
+        ctx.ui.notify(
+          `Project: ${state.projectKey ?? ctx.cwd}\n` +
+            `Project model memory: ${state.projectEnabled ? "on" : "off (global)"}\n` +
+            bindings.join("\n") + "\nUsage: /run-mode project on|off",
+          "info",
+        );
+        return;
+      }
       if (cmd === "") {
         const shortcutHint = cycleShortcut
           ? ` · shortcut: ${cycleShortcut}`
           : "";
         ctx.ui.notify(
           `Mode: ${state.mode} (${state.cycleModes.join(" → ")})${shortcutHint}\n` +
-            `Usage: /run-mode ${state.cycleModes.join("|")} · /run-mode toggle`,
+            `Models: ${state.projectEnabled ? "project" : "global"} · ${state.projectKey ?? ctx.cwd}\n` +
+            `Usage: /run-mode ${state.cycleModes.join("|")} · /run-mode toggle · /run-mode project [on|off]`,
           "info",
         );
         return;
@@ -114,7 +147,7 @@ export function registerModeControls(
         return;
       }
       ctx.ui.notify(
-        `Unknown mode: ${cmd}. Use: ask, plan, auto, toggle`,
+        `Unknown mode: ${cmd}. Use: ask, plan, auto, toggle, project [on|off]`,
         "warning",
       );
     },

@@ -29,16 +29,16 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import {
   createRuntimeState,
   loadStateFile,
-  normalizeModeModels,
+  loadModelBindings,
   persistState,
   resolveCycleShortcut,
   restoreState,
 } from "./core/state.ts";
 import { MODES, type Mode } from "./core/types.ts";
+import { resolveProjectKey } from "./core/project.ts";
 import {
-  alignSyncGroup,
   applyModelToSyncGroup,
-  switchModel,
+  restoreModeModel,
 } from "./core/model-binding.ts";
 import { emitFooterMode, updateStatus } from "./modes/indicator.ts";
 import { createSetMode, registerModeControls } from "./modes/switcher.ts";
@@ -66,8 +66,10 @@ export default function agentModeExtension(pi: ExtensionAPI): void {
 
   // --- Session bootstrap ---
   pi.on("session_start", async (_event, ctx) => {
+    state.initialized = false;
     state.currentCtx = ctx;
     state.currentSessionId = ctx.sessionManager.getSessionId();
+    state.projectKey = resolveProjectKey(ctx.cwd);
 
     // Activate the plan-mode tools so the LLM can call them. registerTool()
     // makes tools exist; setActiveTools() makes them available to the model.
@@ -77,12 +79,6 @@ export default function agentModeExtension(pi: ExtensionAPI): void {
 
     // 1. Load cross-session config from file (lower priority than session).
     const fileState = loadStateFile();
-    if (fileState.modeModels) {
-      state.modeModels = {
-        ...state.modeModels,
-        ...normalizeModeModels(fileState.modeModels),
-      };
-    }
     if (Array.isArray(fileState.syncModels)) {
       state.syncModels = fileState.syncModels.filter((m): m is Mode =>
         MODES.includes(m),
@@ -97,7 +93,7 @@ export default function agentModeExtension(pi: ExtensionAPI): void {
     }
     state.sessionAllowedBash.clear();
     state.autoAllowAiSafe = state.askAiReviewConfig.autoApproval ?? false;
-    alignSyncGroup(state);
+    loadModelBindings(state, fileState);
 
     // Config cycleModes controls the cycle order. Its first mode remains the
     // TUI default; RPC hosts start conservatively in ask mode unless the
@@ -125,27 +121,9 @@ export default function agentModeExtension(pi: ExtensionAPI): void {
     //    stale default. Fallback priority: current mode > plan > auto.
     //    RPC hosts own model selection — cc-connect passes --model and exposes
     //    /model — so the mode binding must not fight their choice.
-    const hostOwnsModel = ctx.mode === "rpc";
-    const target = hostOwnsModel
-      ? undefined
-      : (state.modeModels[state.mode] ??
-        state.modeModels.plan ??
-        state.modeModels.auto);
-    if (target) {
-      const model = ctx.modelRegistry.find(target.provider, target.id);
-      if (
-        model &&
-        (model.provider !== state.currentModelRef?.provider ||
-          model.id !== state.currentModelRef?.id)
-      ) {
-        await switchModel(pi, state, model);
-      }
+    if (!await restoreModeModel(pi, state, { fallback: true })) {
+      ctx.ui.notify("Could not restore the configured mode model.", "warning");
     }
-
-    const thinkingLevel = hostOwnsModel
-      ? undefined
-      : state.modeModels[state.mode]?.thinkingLevel;
-    if (thinkingLevel) pi.setThinkingLevel(thinkingLevel);
 
     state.planPromptInjected = false;
     state.planTurnsSinceInject = 0;
@@ -154,13 +132,18 @@ export default function agentModeExtension(pi: ExtensionAPI): void {
     if (pi.getFlag("plan") === true) {
       await setMode("plan");
     }
+    state.initialized = true;
   });
 
   // Track model changes to keep mode-model bindings in sync.
-  pi.on("model_select", async (event, _ctx) => {
+  pi.on("model_select", async (event, ctx) => {
     state.currentModelRef = { provider: event.model.provider, id: event.model.id };
-    applyModelToSyncGroup(state, state.mode, state.currentModelRef);
-    persistState(pi, state);
+    if (!state.initialized || state.modelSwitchDepth > 0 || ctx.mode === "rpc") return;
+    applyModelToSyncGroup(state, state.mode, {
+      ...state.currentModelRef,
+      thinkingLevel: pi.getThinkingLevel(),
+    });
+    persistState(pi, state, state.mode);
   });
 
   // Track thinking-level changes too; without this a mid-mode level switch
@@ -168,18 +151,20 @@ export default function agentModeExtension(pi: ExtensionAPI): void {
   // Propagating through the sync group is intentional: syncModels share one
   // model, so their thinking level follows too (ask/auto stay in lockstep;
   // plan is outside the group and keeps its own level).
-  pi.on("thinking_level_select", async (event, _ctx) => {
+  pi.on("thinking_level_select", async (event, ctx) => {
     // Ignore level changes emitted by pi.setModel() while a model switch is in
     // flight — that is the forced default level, not a user choice; setMode
     // re-applies the real per-mode level right after the switch.
-    if (state.modelSwitchDepth > 0) return;
+    if (!state.initialized || state.modelSwitchDepth > 0 || ctx.mode === "rpc") return;
     const ref = state.currentModelRef;
     if (!ref) return;
+    // Pi changes thinking before model_select; do not bind the new level to the old model.
+    if (ctx.model && (ctx.model.provider !== ref.provider || ctx.model.id !== ref.id)) return;
     applyModelToSyncGroup(state, state.mode, {
       ...ref,
       thinkingLevel: event.level,
     });
-    persistState(pi, state);
+    persistState(pi, state, state.mode);
   });
 
   pi.registerFlag("plan", {
